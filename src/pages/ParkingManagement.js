@@ -33,6 +33,42 @@ function ParkingManagement() {
     fetchPlateRecords();
   }, []);
 
+  const handleEntrySubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      await apiService.post('parking/entry/', manualEntry);
+      
+      // Refetch the data to get the updated state
+      const parkingResponse = await apiService.get('parking/');
+      setParkingSpots(parkingResponse.data);
+      
+      const recordsResponse = await apiService.get('plate-records/');
+      setPlateRecords(recordsResponse.data);
+      
+      // Reset form
+      setManualEntry({
+        plateNumber: '',
+        vehicleType: 'car',
+        spotId: ''
+      });
+    } catch (error) {
+      console.error('Error submitting entry:', error);
+    }
+  };
+
+  const handleSpotClick = async (spotId) => {
+    try {
+      await apiService.put(`parking/${spotId}/toggle/`);
+      
+      // Refetch parking spots
+      const response = await apiService.get('parking/');
+      setParkingSpots(response.data);
+    } catch (error) {
+      console.error('Error toggling spot status:', error);
+    }
+  };
+
   // State for parking spots (reused from your MainContent component)
   const [parkingSpots, setParkingSpots] = useState([
     { id: 'A1', status: 'available' },
@@ -92,48 +128,48 @@ function ParkingManagement() {
   };
 
   // Handle manual entry form submission
-  const handleEntrySubmit = (e) => {
-    e.preventDefault();
+  // const handleEntrySubmit = (e) => {
+  //   e.preventDefault();
     
-    // Find the spot in the parkingSpots array
-    const updatedSpots = parkingSpots.map(spot => {
-      if (spot.id === manualEntry.spotId) {
-        return { ...spot, status: 'occupied' };
-      }
-      return spot;
-    });
+  //   // Find the spot in the parkingSpots array
+  //   const updatedSpots = parkingSpots.map(spot => {
+  //     if (spot.id === manualEntry.spotId) {
+  //       return { ...spot, status: 'occupied' };
+  //     }
+  //     return spot;
+  //   });
     
-    // Add to plate records
-    const newRecord = {
-      id: plateRecords.length + 1,
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-      plateNumber: manualEntry.plateNumber,
-      status: 'check-in',
-      spot: manualEntry.spotId
-    };
+  //   // Add to plate records
+  //   const newRecord = {
+  //     id: plateRecords.length + 1,
+  //     time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+  //     plateNumber: manualEntry.plateNumber,
+  //     status: 'check-in',
+  //     spot: manualEntry.spotId
+  //   };
     
-    setParkingSpots(updatedSpots);
-    setPlateRecords([newRecord, ...plateRecords]);
+  //   setParkingSpots(updatedSpots);
+  //   setPlateRecords([newRecord, ...plateRecords]);
     
-    // Reset form
-    setManualEntry({
-      plateNumber: '',
-      vehicleType: 'car',
-      spotId: ''
-    });
-  };
+  //   // Reset form
+  //   setManualEntry({
+  //     plateNumber: '',
+  //     vehicleType: 'car',
+  //     spotId: ''
+  //   });
+  // };
 
   // Handle spot click
-  const handleSpotClick = (spotId) => {
-    const updatedSpots = parkingSpots.map(spot => {
-      if (spot.id === spotId) {
-        const newStatus = spot.status === 'available' ? 'occupied' : 'available';
-        return { ...spot, status: newStatus };
-      }
-      return spot;
-    });
-    setParkingSpots(updatedSpots);
-  };
+  // const handleSpotClick = (spotId) => {
+  //   const updatedSpots = parkingSpots.map(spot => {
+  //     if (spot.id === spotId) {
+  //       const newStatus = spot.status === 'available' ? 'occupied' : 'available';
+  //       return { ...spot, status: newStatus };
+  //     }
+  //     return spot;
+  //   });
+  //   setParkingSpots(updatedSpots);
+  // };
 
   // Handle changing the active camera
   const handleCameraChange = (camera) => {
