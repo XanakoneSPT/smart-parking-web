@@ -64,14 +64,14 @@ function Navbar() {
           <i className="fas fa-chart-line"></i>
           <span>Báo cáo</span>
         </Link>
-        <Link
+        {/* <Link
           to="/notifications"
           className={`menu-item ${activeItem === 'Thông báo' ? 'active' : ''}`}
           onClick={() => handleClick('Thông báo')}
         >
           <i className="fas fa-bell"></i>
           <span>Thông báo</span>
-        </Link>
+        </Link> */}
       </div>
     </div>
   );

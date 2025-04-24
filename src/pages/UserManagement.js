@@ -1,80 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import './styles/style-user.css';
 import Footer from '../components/Footer';
+import axios from 'axios';
 
 function UserManagement() {
   // State for users
-  const [users, setUsers] = useState([
-    { 
-      id: 1, 
-      name: 'Nguyễn Văn A', 
-      email: '12Fd3', 
-      role: 'Admin', 
-      status: 'active',
-      lastLogin: '2025-04-01 14:23',
-      permissions: ['dashboard', 'users', 'reports', 'settings']
-    },
-    { 
-      id: 2, 
-      name: 'Trần Thị B', 
-      email: '123Fd3', 
-      role: 'Manager', 
-      status: 'active',
-      lastLogin: '2025-04-01 10:05',
-      permissions: ['dashboard', 'reports', 'settings']
-    },
-    { 
-      id: 3, 
-      name: 'Lê Văn C', 
-      email: '24ef14', 
-      role: 'Student', 
-      status: 'inactive',
-      lastLogin: '2025-03-28 09:15',
-      permissions: ['dashboard', 'reports']
-    },
-    { 
-      id: 4, 
-      name: 'Phạm Thị D', 
-      email: 'e4dd23', 
-      role: 'Student', 
-      status: 'active',
-      lastLogin: '2025-04-02 08:30',
-      permissions: ['dashboard', 'reports']
-    },
-    { 
-      id: 5, 
-      name: 'Hoàng Văn E', 
-      email: 'ffdwe1', 
-      role: 'Manager', 
-      status: 'active',
-      lastLogin: '2025-04-01 16:45',
-      permissions: ['dashboard', 'reports', 'settings']
-    }
-  ]);
-
-  // State for search term
+  const [users, setUsers] = useState([]);
+  
+  // State for loading, error, search and user management
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // State for selected user (for editing)
   const [selectedUser, setSelectedUser] = useState(null);
-  
-  // State for modal visibility
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // State for new user form
   const [newUser, setNewUser] = useState({
     name: '',
-    email: '',
+    id_rfid: '',
     role: 'Student',
-    status: 'active',
+    total_money: 100000,
     permissions: ['dashboard']
   });
 
+  // Fetch users function
+  const fetchUsers = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axios.get('http://192.168.1.2:8000/api_users/sinhvien/');
+      setUsers(response.data);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      setError('Failed to fetch users data. Please try again later.');
+      setLoading(false);
+    }
+  };
+
+  // Use effect to fetch data on component mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+    
   // Filter users based on search term
   const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchTerm.toLowerCase())
+    user.ho_ten.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.id_rfid.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.ma_sv.toString().includes(searchTerm.toLowerCase())
   );
 
   // Handle search input change
@@ -87,10 +61,10 @@ function UserManagement() {
     setSelectedUser(null);
     setNewUser({
       name: '',
-      email: '',
+      id_rfid: '',
       role: 'Student',
-      status: 'active',
-      permissions: ['dashboard']
+      total_money: 100000,
+      permissions: ['dashboard', 'reports']
     });
     setIsModalOpen(true);
   };
@@ -103,19 +77,39 @@ function UserManagement() {
   };
 
   // Handle user deletion
-  const handleDeleteClick = (userId) => {
+  const handleDeleteClick = async (userId) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
-      setUsers(users.filter(user => user.id !== userId));
+      setError(null);
+      
+      try {
+        // Delete user from API
+        await axios.delete(`/api/students/${userId}`);
+        
+        // Refresh the list after deletion
+        fetchUsers();
+      } catch (err) {
+        console.error('Error deleting user:', err);
+        setError('Failed to delete user. Please try again.');
+      }
     }
   };
 
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewUser({
-      ...newUser,
-      [name]: value
-    });
+    
+    // Convert total_money to number if it's a number input
+    if (name === 'total_money' && !isNaN(value)) {
+      setNewUser({
+        ...newUser,
+        [name]: parseInt(value)
+      });
+    } else {
+      setNewUser({
+        ...newUser,
+        [name]: value
+      });
+    }
   };
 
   // Handle permission checkboxes
@@ -138,51 +132,78 @@ function UserManagement() {
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
     
-    if (selectedUser) {
-      // Update existing user
-      setUsers(users.map(user => 
-        user.id === selectedUser.id ? { ...newUser, id: user.id } : user
-      ));
-    } else {
-      // Add new user with generated ID
-      const newId = Math.max(...users.map(user => user.id)) + 1;
-      setUsers([...users, {
-        ...newUser,
-        id: newId,
-        lastLogin: 'Chưa đăng nhập'
-      }]);
-    }
-    
-    // Close modal
-    setIsModalOpen(false);
-  };
-
-  // Handle user status toggle
-  const toggleUserStatus = (userId) => {
-    setUsers(users.map(user => {
-      if (user.id === userId) {
-        const newStatus = user.status === 'active' ? 'inactive' : 'active';
-        return { ...user, status: newStatus };
+    try {
+      if (selectedUser) {
+        // Update existing user
+        const apiData = {
+          MaSV: newUser.id,
+          HoTen: newUser.name,
+          id_RFID: newUser.id_rfid,
+          SoTienHienCo: newUser.total_money
+        };
+        
+        await axios.put(`/api/students/${selectedUser.id}`, apiData);
+        
+        // Refresh user list after update
+        fetchUsers();
+      } else {
+        // Add new user
+        const apiData = {
+          HoTen: newUser.name,
+          id_RFID: newUser.id_rfid,
+          SoTienHienCo: newUser.total_money,
+          MatKhau: 'cntt123' // Default password
+        };
+        
+        await axios.post('/api/students', apiData);
+        
+        // Refresh user list after adding
+        fetchUsers();
       }
-      return user;
-    }));
+      
+      // Close modal
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error('Error saving user:', err);
+      setError('Failed to save user. Please try again.');
+    }
   };
 
-  // Helper function to determine progress bar class
-  const getProgressBarClass = (count, total) => {
-    const percentage = (count / total) * 100;
-    if (percentage <= 33) return 'progress-low';
-    if (percentage <= 66) return 'progress-medium';
-    return 'progress-high';
+  // Handle user money update
+  const updateUserMoney = async (userId, newValue) => {
+    setError(null);
+    
+    try {
+      // Find the user
+      const user = users.find(u => u.id === userId);
+      const newMoney = user.total_money === 'inactive' ? 100000 : 'inactive';
+      
+      // Update money on server
+      await axios.patch(`/api/students/${userId}/money`, { 
+        SoTienHienCo: newMoney 
+      });
+      
+      // Refresh user data
+      fetchUsers();
+    } catch (err) {
+      console.error('Error updating user money:', err);
+      setError('Failed to update user balance. Please try again.');
+    }
   };
+
+  if (loading) return <div className="loading">Đang tải dữ liệu...</div>;
 
   return (
     <>
       {/* Main Content */}
       <div className="content">
+        {/* Error message if any */}
+        {error && <div className="error-message">{error}</div>}
+        
         {/* Top Bar */}
         <div className="top-bar">
           <div className="search-bar">
@@ -217,24 +238,6 @@ function UserManagement() {
           </div>
           <div className="card stat-card">
             <div className="stat-info">
-              <h3>{users.filter(user => user.status === 'active').length}</h3>
-              <p>Người dùng đang hoạt động</p>
-            </div>
-            <div className="icon icon-success">
-              <i className="fas fa-user-check"></i>
-            </div>
-          </div>
-          <div className="card stat-card">
-            <div className="stat-info">
-              <h3>{users.filter(user => user.status === 'inactive').length}</h3>
-              <p>Người dùng không hoạt động</p>
-            </div>
-            <div className="icon icon-danger">
-              <i className="fas fa-user-times"></i>
-            </div>
-          </div>
-          <div className="card stat-card">
-            <div className="stat-info">
               <h3>{users.filter(user => user.role === 'Admin').length}</h3>
               <p>Quản trị viên</p>
             </div>
@@ -265,147 +268,45 @@ function UserManagement() {
                   <th>Tên</th>
                   <th>ID RFID</th>
                   <th>Vai trò</th>
-                  <th>Trạng thái</th>
-                  <th>Đăng nhập cuối</th>
+                  <th>Số tiền hiện có</th>
                   <th>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map(user => (
-                  <tr key={user.id}>
-                    <td>{user.id}</td>
-                    <td>{user.name}</td>
-                    <td>{user.email}</td>
-                    <td>{user.role}</td>
-                    <td>
-                      <span 
-                        className={`status ${user.status === 'active' ? 'available' : 'occupied'}`}
-                        onClick={() => toggleUserStatus(user.id)}
-                      >
-                        {user.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}
-                      </span>
-                    </td>
-                    <td>{user.lastLogin}</td>
-                    <td>
-                      <div>
-                        <button 
-                          onClick={() => handleEditClick(user)}
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteClick(user.id)}
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map(user => (
+                    <tr key={user.ma_sv}>
+                      <td>{user.ma_sv}</td>
+                      <td>{user.ho_ten}</td>
+                      <td>{user.id_rfid}</td>
+                      <td>Sinh vien</td>
+                      <td>{user.so_tien_hien_co} VND</td>
+                      <td>
+                        <div>
+                          <button 
+                            onClick={() => handleEditClick(user)}
+                          >
+                            <i className="fas fa-edit"></i>
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteClick(user.id)}
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="no-data">Không tìm thấy người dùng</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
         </div>
         
-        {/* Role Distribution */}
-        <div className="tables-container">
-          <div className="card">
-            <h2>Phân bố vai trò</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Vai trò</th>
-                  <th>Số lượng</th>
-                  <th>Tỷ lệ</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Admin</td>
-                  <td>{users.filter(user => user.role === 'Admin').length}</td>
-                  <td>
-                    <div className="progress-bar">
-                      <div 
-                        className={`progress ${getProgressBarClass(
-                          users.filter(user => user.role === 'Admin').length, 
-                          users.length
-                        )}`}
-                      ></div>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Manager</td>
-                  <td>{users.filter(user => user.role === 'Manager').length}</td>
-                  <td>
-                    <div className="progress-bar">
-                      <div 
-                        className={`progress ${getProgressBarClass(
-                          users.filter(user => user.role === 'Manager').length, 
-                          users.length
-                        )}`}
-                      ></div>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Student</td>
-                  <td>{users.filter(user => user.role === 'Student').length}</td>
-                  <td>
-                    <div className="progress-bar">
-                      <div 
-                        className={`progress ${getProgressBarClass(
-                          users.filter(user => user.role === 'Student').length, 
-                          users.length
-                        )}`}
-                      ></div>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="card">
-            <h2>Hoạt động người dùng gần đây</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Người dùng</th>
-                  <th>Hành động</th>
-                  <th>Thời gian</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Nguyễn Văn A</td>
-                  <td>Đăng nhập</td>
-                  <td>2025-04-02 08:45</td>
-                </tr>
-                <tr>
-                  <td>Trần Thị B</td>
-                  <td>Cập nhật thông tin</td>
-                  <td>2025-04-01 16:30</td>
-                </tr>
-                <tr>
-                  <td>Phạm Thị D</td>
-                  <td>Đăng nhập</td>
-                  <td>2025-04-01 08:30</td>
-                </tr>
-                <tr>
-                  <td>Hoàng Văn E</td>
-                  <td>Thay đổi mật khẩu</td>
-                  <td>2025-03-31 14:20</td>
-                </tr>
-                <tr>
-                  <td>Admin User</td>
-                  <td>Tạo người dùng mới</td>
-                  <td>2025-03-30 11:15</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         {/* User Modal */}
         {isModalOpen && (
           <div className="modal-overlay">
@@ -433,11 +334,11 @@ function UserManagement() {
                 </div>
                 
                 <div className="form-group">
-                  <label>Email</label>
+                  <label>ID RFID</label>
                   <input 
-                    type="email" 
-                    name="email" 
-                    value={newUser.email} 
+                    type="text" 
+                    name="id_rfid" 
+                    value={newUser.id_rfid} 
                     onChange={handleInputChange}
                     required
                   />
@@ -457,15 +358,15 @@ function UserManagement() {
                 </div>
                 
                 <div className="form-group">
-                  <label>Trạng thái</label>
-                  <select 
-                    name="status" 
-                    value={newUser.status} 
+                  <label>Số tiền hiện có</label>
+                  <input 
+                    type="number" 
+                    name="total_money"
+                    value={newUser.total_money === 'inactive' ? 0 : newUser.total_money}
                     onChange={handleInputChange}
-                  >
-                    <option value="active">Hoạt động</option>
-                    <option value="inactive">Không hoạt động</option>
-                  </select>
+                    min="0"
+                    step="1000"
+                  />
                 </div>
                 
                 <div className="form-group">

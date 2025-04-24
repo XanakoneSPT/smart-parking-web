@@ -1,39 +1,65 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import './styles/style-parking.css';
 import Footer from '../components/Footer';
 import { apiService } from '../services/api';
 
 function ParkingManagement() {
+  // STATE MANAGEMENT
+  // -----------------
   
-  // const [parkingSpots, setParkingSpots] = useState([]);
+  // Parking spots state
+  const [parkingSpots, setParkingSpots] = useState([
+    { id: 'A1', status: 'available' },
+    { id: 'A2', status: 'occupied' },
+    { id: 'A3', status: 'occupied' },
+    { id: 'A4', status: 'available' },
+    { id: 'B1', status: 'occupied' },
+    { id: 'B2', status: 'available' },
+    { id: 'B3', status: 'occupied' },
+    { id: 'B4', status: 'available' },
+    { id: 'C1', status: 'available' },
+    { id: 'C2', status: 'available' },
+    { id: 'C3', status: 'occupied' },
+    { id: 'C4', status: 'available' }
+  ]);
   
-  // useEffect(() => {
-  //   const fetchParkingSpots = async () => {
-  //     try {
-  //       // Update this endpoint to match your Django API
-  //       const response = await apiService.get('khuvuc/');
-        
-  //       // Transform the API response to match your parking spots format
-  //       const formattedSpots = response.data.map(spot => ({
-  //         id: spot.ma_khu_vuc,
-  //         status: 'available', // Default status or determine based on your API response
-  //       }));
-        
-  //       setParkingSpots(formattedSpots);
-  //     } catch (error) {
-  //       console.error('Error fetching parking spots:', error);
-  //       // If the API fails, use the default data
-  //       setParkingSpots([
-  //         { id: 'A1', status: 'available' },
-  //         { id: 'A2', status: 'occupied' },
-  //         // ... other default spots
-  //       ]);
-  //     }
-  //   };
-    
-  //   fetchParkingSpots();
-  // }, []);
-
+  // License plate records state
+  const [plateRecords, setPlateRecords] = useState([
+    { id: 1, time: '14:35', plateNumber: '29A-12345', status: 'check-in', spot: 'A3' },
+    { id: 2, time: '14:22', plateNumber: '30B-67890', status: 'check-out', spot: 'B1' },
+    { id: 3, time: '13:57', plateNumber: '33C-45678', status: 'check-in', spot: 'C3' },
+    { id: 4, time: '13:30', plateNumber: '29B-98765', status: 'check-in', spot: 'B3' },
+    { id: 5, time: '13:15', plateNumber: '30A-56789', status: 'check-out', spot: 'A2' }
+  ]);
+  
+  // UI related states
+  const [activeCamera, setActiveCamera] = useState('occupancy');
+  
+  // Alerts state
+  const [alerts, setAlerts] = useState([
+    { id: 1, time: '14:30', message: 'Unauthorized vehicle detected at Zone B', type: 'warning' },
+    { id: 2, time: '13:22', message: 'Camera 2 connection lost', type: 'error' },
+    { id: 3, time: '12:45', message: 'Zone A approaching capacity (85%)', type: 'info' }
+  ]);
+  
+  // Parking rules state
+  const [parkingRules, setParkingRules] = useState([
+    { id: 1, zone: 'A', maximumHours: 3, hourlyRate: 5, status: 'active' },
+    { id: 2, zone: 'B', maximumHours: 8, hourlyRate: 3, status: 'active' },
+    { id: 3, zone: 'C', maximumHours: 24, hourlyRate: 2, status: 'active' }
+  ]);
+  
+  // Form states
+  const [manualEntry, setManualEntry] = useState({
+    plateNumber: '',
+    vehicleType: 'car',
+    spotId: ''
+  });
+  
+  // DATA FETCHING
+  // ---------------
+  
+  // Fetch plate records
   useEffect(() => {
     const fetchPlateRecords = async () => {
       try {
@@ -46,43 +72,36 @@ function ParkingManagement() {
     
     fetchPlateRecords();
   }, []);
-
-  // const handleEntrySubmit = async (e) => {
-  //   e.preventDefault();
+  
+  // Simulate camera feed refresh
+  useEffect(() => {
+    const timer = setInterval(() => {
+      // Visual indicator that the camera feed is "live"
+      const cameraFeed = document.getElementById('camera-feed');
+      if (cameraFeed) {
+        cameraFeed.classList.add('refreshing');
+        setTimeout(() => {
+          cameraFeed.classList.remove('refreshing');
+        }, 300);
+      }
+    }, 5000);
     
-  //   try {
-  //     // Create a proper payload based on your Django model
-  //     const payload = {
-  //       ma_khu_vuc: manualEntry.spotId,
-  //       bai_do_xe_id: 'BAI01', // You may need to adjust this based on your setup
-  //       ten_khu_vuc: `Spot ${manualEntry.spotId}`,
-  //       suc_chua: 1
-  //     };
-      
-  //     await apiService.post('khuvuc/', payload);
-      
-  //     // Refetch the data to get the updated state
-  //     const parkingResponse = await apiService.get('khuvuc/');
-      
-  //     // Transform the response to match your UI format
-  //     const formattedSpots = parkingResponse.data.map(spot => ({
-  //       id: spot.ma_khu_vuc,
-  //       status: 'occupied', // You may need logic to determine the status
-  //     }));
-      
-  //     setParkingSpots(formattedSpots);
-      
-  //     // Reset form
-  //     setManualEntry({
-  //       plateNumber: '',
-  //       vehicleType: 'car',
-  //       spotId: ''
-  //     });
-  //   } catch (error) {
-  //     console.error('Error submitting entry:', error);
-  //   }
-  // };
-
+    return () => clearInterval(timer);
+  }, []);
+  
+  // EVENT HANDLERS
+  // ---------------
+  
+  // Handle form input changes
+  const handleEntryChange = (e) => {
+    const { name, value } = e.target;
+    setManualEntry(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // Handle form submission
   const handleEntrySubmit = async (e) => {
     e.preventDefault();
     
@@ -106,7 +125,8 @@ function ParkingManagement() {
       console.error('Error submitting entry:', error);
     }
   };
-
+  
+  // Handle parking spot status change
   const handleSpotClick = async (spotId) => {
     try {
       await apiService.put(`parking/${spotId}/toggle/`);
@@ -118,132 +138,13 @@ function ParkingManagement() {
       console.error('Error toggling spot status:', error);
     }
   };
-
-  // State for parking spots (reused from your MainContent component)
-  const [parkingSpots, setParkingSpots] = useState([
-    { id: 'A1', status: 'available' },
-    { id: 'A2', status: 'occupied' },
-    { id: 'A3', status: 'occupied' },
-    { id: 'A4', status: 'available' },
-    { id: 'B1', status: 'occupied' },
-    { id: 'B2', status: 'available' },
-    { id: 'B3', status: 'occupied' },
-    { id: 'B4', status: 'available' },
-    { id: 'C1', status: 'available' },
-    { id: 'C2', status: 'available' },
-    { id: 'C3', status: 'occupied' },
-    { id: 'C4', status: 'available' }
-  ]);
-
-  // State for license plate recognition
-  const [plateRecords, setPlateRecords] = useState([
-    { id: 1, time: '14:35', plateNumber: '29A-12345', status: 'check-in', spot: 'A3' },
-    { id: 2, time: '14:22', plateNumber: '30B-67890', status: 'check-out', spot: 'B1' },
-    { id: 3, time: '13:57', plateNumber: '33C-45678', status: 'check-in', spot: 'C3' },
-    { id: 4, time: '13:30', plateNumber: '29B-98765', status: 'check-in', spot: 'B3' },
-    { id: 5, time: '13:15', plateNumber: '30A-56789', status: 'check-out', spot: 'A2' }
-  ]);
-
-  // State for currently selected camera
-  const [activeCamera, setActiveCamera] = useState('occupancy');
-
-  // State for parking alerts
-  const [alerts, setAlerts] = useState([
-    { id: 1, time: '14:30', message: 'Unauthorized vehicle detected at Zone B', type: 'warning' },
-    { id: 2, time: '13:22', message: 'Camera 2 connection lost', type: 'error' },
-    { id: 3, time: '12:45', message: 'Zone A approaching capacity (85%)', type: 'info' }
-  ]);
-
-  // State for parking rules
-  const [parkingRules, setParkingRules] = useState([
-    { id: 1, zone: 'A', maximumHours: 3, hourlyRate: 5, status: 'active' },
-    { id: 2, zone: 'B', maximumHours: 8, hourlyRate: 3, status: 'active' },
-    { id: 3, zone: 'C', maximumHours: 24, hourlyRate: 2, status: 'active' }
-  ]);
-
-  // State for manual entry form
-  const [manualEntry, setManualEntry] = useState({
-    plateNumber: '',
-    vehicleType: 'car',
-    spotId: ''
-  });
-
-  // Handle form input changes
-  const handleEntryChange = (e) => {
-    const { name, value } = e.target;
-    setManualEntry(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
   
-  // Handle manual entry form submission
-  // const handleEntrySubmit = (e) => {
-  //   e.preventDefault();
-    
-  //   // Find the spot in the parkingSpots array
-  //   const updatedSpots = parkingSpots.map(spot => {
-  //     if (spot.id === manualEntry.spotId) {
-  //       return { ...spot, status: 'occupied' };
-  //     }
-  //     return spot;
-  //   });
-    
-  //   // Add to plate records
-  //   const newRecord = {
-  //     id: plateRecords.length + 1,
-  //     time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-  //     plateNumber: manualEntry.plateNumber,
-  //     status: 'check-in',
-  //     spot: manualEntry.spotId
-  //   };
-    
-  //   setParkingSpots(updatedSpots);
-  //   setPlateRecords([newRecord, ...plateRecords]);
-    
-  //   // Reset form
-  //   setManualEntry({
-  //     plateNumber: '',
-  //     vehicleType: 'car',
-  //     spotId: ''
-  //   });
-  // };
-
-  // Handle spot click
-  // const handleSpotClick = (spotId) => {
-  //   const updatedSpots = parkingSpots.map(spot => {
-  //     if (spot.id === spotId) {
-  //       const newStatus = spot.status === 'available' ? 'occupied' : 'available';
-  //       return { ...spot, status: newStatus };
-  //     }
-  //     return spot;
-  //   });
-  //   setParkingSpots(updatedSpots);
-  // };
-
-  // Handle changing the active camera
+  // Handle camera view change
   const handleCameraChange = (camera) => {
     setActiveCamera(camera);
   };
-
-  // Simulate auto-refresh of camera feed
-  useEffect(() => {
-    const timer = setInterval(() => {
-      // Just a subtle visual indicator that the camera feed is "live"
-      const cameraFeed = document.getElementById('camera-feed');
-      if (cameraFeed) {
-        cameraFeed.classList.add('refreshing');
-        setTimeout(() => {
-          cameraFeed.classList.remove('refreshing');
-        }, 300);
-      }
-    }, 5000);
-    
-    return () => clearInterval(timer);
-  }, []);
-
-  // Function to add a new rule
+  
+  // Handle adding a new parking rule
   const handleAddRule = () => {
     const newRule = {
       id: parkingRules.length + 1,
@@ -254,8 +155,8 @@ function ParkingManagement() {
     };
     setParkingRules([...parkingRules, newRule]);
   };
-
-  // Function to toggle rule status
+  
+  // Handle toggling rule status
   const toggleRuleStatus = (id) => {
     const updatedRules = parkingRules.map(rule => {
       if (rule.id === id) {
@@ -269,9 +170,11 @@ function ParkingManagement() {
     setParkingRules(updatedRules);
   };
 
+  // RENDER
+  // -------
   return (
     <div className="content">
-      {/* Top Bar (reused from your MainContent component) */}
+      {/* Top Bar */}
       <div className="top-bar">
         <div className="search-bar">
           <i className="fas fa-search"></i>
@@ -313,7 +216,7 @@ function ParkingManagement() {
             {activeCamera === 'occupancy' ? (
               <div className="camera-feed-content occupancy-camera">
                 <div className="camera-overlay">
-                  {parkingSpots.map(spot => (
+                  {/* {parkingSpots.map(spot => (
                     <div 
                       key={spot.id}
                       className={`overlay-spot ${spot.status}`}
@@ -322,12 +225,13 @@ function ParkingManagement() {
                         top: spot.id.charAt(0) === 'A' ? '20%' : 
                               spot.id.charAt(0) === 'B' ? '50%' : '80%'
                       }}
+                      onClick={() => handleSpotClick(spot.id)}
                     >
                       {spot.id}
                     </div>
-                  ))}
+                  ))} */}
                 </div>
-                <img src="/api/placeholder/640/360" alt="Occupancy Camera Feed" />
+                <img src="http://192.168.1.2:8000/video_feed" alt="Occupancy Camera Feed" />
                 <div className="camera-info">
                   <span className="camera-label">Camera phát hiện chỗ trống</span>
                   <span className="camera-status">Trực tiếp</span>
@@ -349,41 +253,12 @@ function ParkingManagement() {
             )}
           </div> 
         </div>
-
-        {/* Live Parking Map */}
-        <div className="card parking-map-card">
-          <h2>Bản đồ bãi đỗ xe trực tiếp</h2>
-          <div className="parking-map">
-            <div className="parking-structure">
-              {/* Dynamic parking spots */}
-              {parkingSpots.map(spot => (
-                <div 
-                  key={spot.id}
-                  className={`parking-spot ${spot.status}`}
-                  onClick={() => handleSpotClick(spot.id)}
-                >
-                  {spot.id}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="map-legend">
-            <div className="legend-item">
-              <div className="legend-color available"></div>
-              <span>Trống</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color occupied"></div>
-              <span>Đã đỗ</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* License Plate Recognition and Manual Entry Section */}
       <div className="tables-container">
         {/* License Plate Recognition Records */}
-        <div className="card">
+        {/* <div className="card">
           <h2>Nhận diện biển số xe</h2>
           <div className="plate-records">
             <table>
@@ -420,7 +295,7 @@ function ParkingManagement() {
               </tbody>
             </table>
           </div>
-        </div>
+        </div> */}
 
         {/* Manual Entry Form */}
         <div className="card">
@@ -481,9 +356,8 @@ function ParkingManagement() {
         </div>
       </div>
 
-      {/* Alerts and Parking Rules Section */}
-      <div className="tables-container">
-        {/* Alerts */}
+      {/* Alerts Section */}
+      {/* <div className="tables-container">
         <div className="card">
           <div className="card-header">
             <h2>Cảnh báo và thông báo</h2>
@@ -510,53 +384,7 @@ function ParkingManagement() {
             ))}
           </div>
         </div>
-
-        {/* Parking Rules */}
-        <div className="card">
-          <div className="card-header">
-            <h2>Quy định bãi đỗ xe</h2>
-            <button className="add-rule-button" onClick={handleAddRule}>
-              <i className="fas fa-plus"></i> Thêm quy định
-            </button>
-          </div>
-          <table className="rules-table">
-            <thead>
-              <tr>
-                <th>Khu vực</th>
-                <th>Thời gian tối đa (giờ)</th>
-                <th>Giá tiền/giờ</th>
-                <th>Trạng thái</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {parkingRules.map(rule => (
-                <tr key={rule.id}>
-                  <td>Khu {rule.zone}</td>
-                  <td>{rule.maximumHours}</td>
-                  <td>${rule.hourlyRate}</td>
-                  <td>
-                    <div 
-                      className={`toggle-switch ${rule.status === 'active' ? 'active' : ''}`}
-                      onClick={() => toggleRuleStatus(rule.id)}
-                    >
-                      <div className="toggle-slider"></div>
-                    </div>
-                  </td>
-                  <td>
-                    <button className="action-button">
-                      <i className="fas fa-edit"></i>
-                    </button>
-                    <button className="action-button">
-                      <i className="fas fa-trash"></i>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      </div> */}
 
       <Footer />
     </div>
