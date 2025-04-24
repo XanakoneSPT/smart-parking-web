@@ -4,16 +4,30 @@ import Footer from '../components/Footer';
 import { apiService } from '../services/api';
 
 function ParkingManagement() {
-
+  
   // const [parkingSpots, setParkingSpots] = useState([]);
   
   // useEffect(() => {
   //   const fetchParkingSpots = async () => {
   //     try {
-  //       const response = await apiService.get('parking/');
-  //       setParkingSpots(response.data);
+  //       // Update this endpoint to match your Django API
+  //       const response = await apiService.get('khuvuc/');
+        
+  //       // Transform the API response to match your parking spots format
+  //       const formattedSpots = response.data.map(spot => ({
+  //         id: spot.ma_khu_vuc,
+  //         status: 'available', // Default status or determine based on your API response
+  //       }));
+        
+  //       setParkingSpots(formattedSpots);
   //     } catch (error) {
   //       console.error('Error fetching parking spots:', error);
+  //       // If the API fails, use the default data
+  //       setParkingSpots([
+  //         { id: 'A1', status: 'available' },
+  //         { id: 'A2', status: 'occupied' },
+  //         // ... other default spots
+  //       ]);
   //     }
   //   };
     
@@ -32,6 +46,42 @@ function ParkingManagement() {
     
     fetchPlateRecords();
   }, []);
+
+  // const handleEntrySubmit = async (e) => {
+  //   e.preventDefault();
+    
+  //   try {
+  //     // Create a proper payload based on your Django model
+  //     const payload = {
+  //       ma_khu_vuc: manualEntry.spotId,
+  //       bai_do_xe_id: 'BAI01', // You may need to adjust this based on your setup
+  //       ten_khu_vuc: `Spot ${manualEntry.spotId}`,
+  //       suc_chua: 1
+  //     };
+      
+  //     await apiService.post('khuvuc/', payload);
+      
+  //     // Refetch the data to get the updated state
+  //     const parkingResponse = await apiService.get('khuvuc/');
+      
+  //     // Transform the response to match your UI format
+  //     const formattedSpots = parkingResponse.data.map(spot => ({
+  //       id: spot.ma_khu_vuc,
+  //       status: 'occupied', // You may need logic to determine the status
+  //     }));
+      
+  //     setParkingSpots(formattedSpots);
+      
+  //     // Reset form
+  //     setManualEntry({
+  //       plateNumber: '',
+  //       vehicleType: 'car',
+  //       spotId: ''
+  //     });
+  //   } catch (error) {
+  //     console.error('Error submitting entry:', error);
+  //   }
+  // };
 
   const handleEntrySubmit = async (e) => {
     e.preventDefault();
@@ -127,6 +177,7 @@ function ParkingManagement() {
     }));
   };
 
+  
   // Handle manual entry form submission
   // const handleEntrySubmit = (e) => {
   //   e.preventDefault();
