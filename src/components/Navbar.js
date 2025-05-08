@@ -16,14 +16,14 @@ function Navbar() {
         <h2><i className="fas fa-parking"></i> <span>Smart Parking</span></h2>
       </div>
       <div className="menu">
-        <Link
+        {/* <Link
           to="/home"
           className={`menu-item ${activeItem === 'Trang chủ' ? 'active' : ''}`}
           onClick={() => handleClick('Trang chủ')}
         >
           <i className="fas fa-tachometer-alt"></i>
           <span>Trang chủ</span>
-        </Link>
+        </Link> */}
         <Link
           to="/parking-management"
           className={`menu-item ${activeItem === 'Quản lý bãi đỗ' ? 'active' : ''}`}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './styles/style-parking.css';
 import Footer from '../components/Footer';
 import { apiService } from '../services/api';
+import { API_URL } from '../services/api';
 
 function ParkingManagement() {
   // STATE MANAGEMENT
@@ -60,18 +61,18 @@ function ParkingManagement() {
   // ---------------
   
   // Fetch plate records
-  useEffect(() => {
-    const fetchPlateRecords = async () => {
-      try {
-        const response = await apiService.get('plate-records/');
-        setPlateRecords(response.data);
-      } catch (error) {
-        console.error('Error fetching plate records:', error);
-      }
-    };
+  // useEffect(() => {
+  //   const fetchPlateRecords = async () => {
+  //     try {
+  //       const response = await apiService.get('plate-records/');
+  //       setPlateRecords(response.data);
+  //     } catch (error) {
+  //       console.error('Error fetching plate records:', error);
+  //     }
+  //   };
     
-    fetchPlateRecords();
-  }, []);
+  //   fetchPlateRecords();
+  // }, []);
   
   // Simulate camera feed refresh
   useEffect(() => {
@@ -231,7 +232,7 @@ function ParkingManagement() {
                     </div>
                   ))} */}
                 </div>
-                <img src="http://192.168.1.2:8000/video_feed" alt="Occupancy Camera Feed" />
+                <img src={`${API_URL}video_feed`} alt="Occupancy Camera Feed" />
                 <div className="camera-info">
                   <span className="camera-label">Camera phát hiện chỗ trống</span>
                   <span className="camera-status">Trực tiếp</span>

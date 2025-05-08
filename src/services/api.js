@@ -1,7 +1,7 @@
 // src/services/api.js
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000/api/';
+export const API_URL = 'http://192.168.1.9:8000/';
 
 // Add authorization header to requests
 const getHeaders = () => {
