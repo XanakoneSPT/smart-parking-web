@@ -13,6 +13,7 @@ function UserManagement() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUser, setNewUser] = useState({
+    id: '', // Student ID (ma_sv)
     name: '',
     id_rfid: '',
     role: 'Student',
@@ -20,13 +21,20 @@ function UserManagement() {
     permissions: ['dashboard', 'reports']
   });
 
+  // Log API URL for debugging
+  useEffect(() => {
+    console.log('API URL:', API_URL);
+  }, []);
+
   // Fetch users function
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
     
     try {
+      console.log('Fetching users from:', `${API_URL}api_users/sinhvien/`);
       const response = await axios.get(`${API_URL}api_users/sinhvien/`);
+      console.log('Users data received:', response.data);
       setUsers(response.data);
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -56,6 +64,7 @@ function UserManagement() {
   const handleAddUserClick = () => {
     setSelectedUser(null);
     setNewUser({
+      id: '', 
       name: '',
       id_rfid: '',
       role: 'Student',
@@ -128,9 +137,70 @@ function UserManagement() {
     });
   };
 
+  // Direct API call function - bypass complex logic
+  const addUserDirectly = async () => {
+    try {
+      // Simple request with minimal data for testing
+      const apiData = {
+        ma_sv: newUser.id,
+        ho_ten: newUser.name,
+        id_rfid: newUser.id_rfid,
+        so_tien_hien_co: newUser.total_money,
+        mat_khau: 'cntt123'
+      };
+      
+      console.log('Sending direct API request to create user:', apiData);
+      
+      const response = await axios({
+        method: 'post',
+        url: `${API_URL}api_users/sinhvien/`,
+        data: apiData,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('User created successfully:', response.data);
+      fetchUsers();
+      setIsModalOpen(false);
+      return true;
+    } catch (err) {
+      console.error('Direct API call error:', err);
+      let errorMessage = 'Failed to create user: ';
+      
+      if (err.response) {
+        console.log('Error response:', err.response);
+        errorMessage += JSON.stringify(err.response.data || {});
+      } else {
+        errorMessage += err.message;
+      }
+      
+      setError(errorMessage);
+      return false;
+    }
+  };
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError(null);
+    
+    console.log('Form submission initiated with data:', newUser);
+    
+    // Validate form data
+    if (!newUser.id) {
+      setError('MSSV (Student ID) is required');
+      return;
+    }
+    
+    if (!newUser.name) {
+      setError('Name is required');
+      return;
+    }
+    
+    if (!newUser.id_rfid) {
+      setError('RFID ID is required');
+      return;
+    }
     
     try {
       if (selectedUser) {
@@ -142,25 +212,34 @@ function UserManagement() {
           so_tien_hien_co: newUser.total_money
         };
         
-        await axios.put(`${API_URL}api_users/sinhvien/${selectedUser.ma_sv}/`, apiData);
+        console.log('Updating user with data:', apiData);
+        const response = await axios.put(`${API_URL}api_users/sinhvien/${selectedUser.ma_sv}/`, apiData);
+        console.log('Update response:', response.data);
       } else {
-        // Add new user
-        const apiData = {
-          ho_ten: newUser.name,
-          id_rfid: newUser.id_rfid,
-          so_tien_hien_co: newUser.total_money,
-          mat_khau: 'cntt123' // Default password
-        };
-        
-        await axios.post(`${API_URL}api_users/sinhvien/`, apiData);
+        // Try the direct API call approach
+        return await addUserDirectly();
       }
       
       // Refresh user list and close modal
       fetchUsers();
       setIsModalOpen(false);
+      return true;
     } catch (err) {
       console.error('Error saving user:', err);
-      setError('Failed to save user. Please try again.');
+      
+      let errorMessage = 'Failed to save user. ';
+      
+      if (err.response) {
+        console.log('Error response:', err.response);
+        errorMessage += 'Server response: ' + JSON.stringify(err.response.data || {});
+      } else if (err.request) {
+        errorMessage += 'No response received from server. Check network connection.';
+      } else {
+        errorMessage += err.message;
+      }
+      
+      setError(errorMessage);
+      return false;
     }
   };
 
@@ -240,7 +319,7 @@ function UserManagement() {
             <i className="fas fa-user-check"></i>
           </div>
         </div>
-        <div className="card stat-card">
+        {/* <div className="card stat-card">
           <div className="stat-info">
             <h3>{users.filter(user => user.so_tien_hien_co === 'inactive').length}</h3>
             <p>Người dùng không hoạt động</p>
@@ -248,7 +327,7 @@ function UserManagement() {
           <div className="icon icon-danger">
             <i className="fas fa-user-times"></i>
           </div>
-        </div>
+        </div> */}
         <div className="card stat-card">
           <div className="stat-info">
             <h3>{users.filter(user => user.role === 'Admin').length || 0}</h3>
@@ -331,8 +410,20 @@ function UserManagement() {
             </div>
             
             <form onSubmit={handleSubmit}>
+              {/* Student ID field */}
               <div className="form-group">
-                <label>Tên người dùng</label>
+                <label>MSSV (Student ID) *</label>
+                <input 
+                  type="text" 
+                  name="id" 
+                  value={newUser.id} 
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+            
+              <div className="form-group">
+                <label>Tên người dùng *</label>
                 <input 
                   type="text" 
                   name="name" 
@@ -343,7 +434,7 @@ function UserManagement() {
               </div>
               
               <div className="form-group">
-                <label>ID RFID</label>
+                <label>ID RFID *</label>
                 <input 
                   type="text" 
                   name="id_rfid" 
@@ -414,6 +505,7 @@ function UserManagement() {
                 >
                   {selectedUser ? 'Cập nhật' : 'Thêm mới'}
                 </button>
+                
               </div>
             </form>
           </div>
