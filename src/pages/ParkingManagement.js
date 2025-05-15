@@ -245,7 +245,7 @@ function ParkingManagement() {
                     <div className="detected-plate">29A-12345</div>
                   </div>
                 </div>
-                <img src="/api/placeholder/640/360" alt="License Plate Camera Feed" />
+                <img src={`${API_URL}lp_detection_feed`} alt="License Plate Camera Feed" />
                 <div className="camera-info">
                   <span className="camera-label">Camera nhận diện biển số</span>
                   <span className="camera-status">Trực tiếp</span>

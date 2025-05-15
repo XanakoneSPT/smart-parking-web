@@ -395,3 +395,77 @@
     padding: 10px 20px;
     cursor: pointer;
   }
+
+/* Table loading state styling */
+.table-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  min-height: 200px;
+  width: 100%;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #4a90e2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error card styling */
+.error-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  background-color: #fff;
+  border-radius: 8px;
+  border-left: 4px solid #e74c3c;
+  margin-bottom: 1.5rem;
+}
+
+.error-icon {
+  font-size: 2rem;
+  color: #e74c3c;
+  margin-bottom: 1rem;
+}
+
+/* Content container - ensure it leaves space for the sidebar */
+.content {
+  margin-left: 240px; /* Adjust this value based on your sidebar width */
+  padding: 1.5rem;
+}
+
+/* Make sure tables have proper spacing */
+.table-responsive {
+  position: relative;
+  min-height: 200px; /* Minimum height to accommodate loading state */
+}
+
+/* Media query for mobile responsiveness */
+@media (max-width: 768px) {
+  .content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+  
+  .table-loading-state {
+    min-height: 150px;
+  }
+}

@@ -1,91 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import './styles/style-history.css'
+import './styles/style-history.css';
 import Footer from '../components/Footer';
+import axios from 'axios';
+import { API_URL } from '../services/api';
 
 function HistoryPage() {
   // State for history records
-  const [historyRecords, setHistoryRecords] = useState([
-    {
-      id: '1001',
-      studentId: 'ST12345', 
-      carPlate: '29A-12345',
-      checkInTime: '2025-04-01 08:15:22',
-      checkOutTime: '2025-04-01 16:45:37',
-      checkInImage: '/api/placeholder/80/60',
-      checkOutImage: '/api/placeholder/80/60',
-      status: 'completed'
-    },
-    {
-      id: '1002',
-      studentId: 'ST23456',
-      carPlate: '30F-56789',
-      checkInTime: '2025-04-02 09:20:15',
-      checkOutTime: '2025-04-02 17:30:42',
-      checkInImage: '/api/placeholder/80/60',
-      checkOutImage: '/api/placeholder/80/60',
-      status: 'completed'
-    },
-    {
-      id: '1003',
-      studentId: 'ST34567',
-      carPlate: '33A-78901',
-      checkInTime: '2025-04-03 07:45:30',
-      checkOutTime: '',
-      checkInImage: '/api/placeholder/80/60',
-      checkOutImage: '',
-      status: 'active'
-    },
-    {
-      id: '1004',
-      studentId: 'ST45678',
-      carPlate: '29B-34567',
-      checkInTime: '2025-04-02 10:05:12',
-      checkOutTime: '2025-04-02 18:22:51',
-      checkInImage: '/api/placeholder/80/60',
-      checkOutImage: '/api/placeholder/80/60',
-      status: 'completed'
-    },
-    {
-      id: '1005',
-      studentId: 'ST56789',
-      carPlate: '30A-89012',
-      checkInTime: '2025-04-03 08:30:45',
-      checkOutTime: '',
-      checkInImage: '/api/placeholder/80/60',
-      checkOutImage: '',
-      status: 'active'
-    },
-    {
-      id: '1006',
-      studentId: 'ST67890',
-      carPlate: '31A-23456',
-      checkInTime: '2025-04-01 09:15:33',
-      checkOutTime: '2025-04-01 15:40:22',
-      checkInImage: '/api/placeholder/80/60',
-      checkOutImage: '/api/placeholder/80/60',
-      status: 'completed'
-    },
-    {
-      id: '1007',
-      studentId: 'ST78901',
-      carPlate: '29C-45678',
-      checkInTime: '2025-04-02 11:25:18',
-      checkOutTime: '2025-04-02 19:10:35',
-      checkInImage: '/api/placeholder/80/60',
-      checkOutImage: '/api/placeholder/80/60',
-      status: 'completed'
-    },
-    {
-      id: '1008',
-      studentId: 'ST89012',
-      carPlate: '33B-67890',
-      checkInTime: '2025-04-03 08:55:40',
-      checkOutTime: '',
-      checkInImage: '/api/placeholder/80/60',
-      checkOutImage: '',
-      status: 'active'
-    },
-  ]);
+  const [historyRecords, setHistoryRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // State for filters
   const [filters, setFilters] = useState({
@@ -100,8 +23,60 @@ function HistoryPage() {
   // State for pagination
   const [pagination, setPagination] = useState({
     currentPage: 1,
-    recordsPerPage: 5
+    recordsPerPage: 5,
+    totalRecords: 0,
+    totalPages: 0
   });
+
+  // Fetch history records from API
+  useEffect(() => {
+    fetchHistoryRecords();
+  }, [filters, pagination.currentPage, pagination.recordsPerPage]);
+
+  const fetchHistoryRecords = async () => {
+    try {
+      setLoading(true);
+      
+      // Prepare query parameters
+      const params = new URLSearchParams();
+      params.append('page', pagination.currentPage);
+      params.append('limit', pagination.recordsPerPage);
+      
+      if (filters.search) {
+        params.append('search', filters.search);
+      }
+      
+      if (filters.status) {
+        params.append('status', filters.status);
+      }
+      
+      if (filters.dateRange.from) {
+        params.append('fromDate', filters.dateRange.from);
+      }
+      
+      if (filters.dateRange.to) {
+        params.append('toDate', filters.dateRange.to);
+      }
+      
+      // Make API call
+      const response = await axios.get(`${API_URL}/api_users/lichsuravao`, { params });
+      console.log('API Response:', response.data);
+      
+      // Update state with API response
+      setHistoryRecords(response.data);
+      setPagination({
+        ...pagination,
+        totalRecords: response.data.totalRecords,
+        totalPages: response.data.totalPages
+      });
+      
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching history records:', err);
+      setError('Failed to load history records. Please try again later.');
+      setLoading(false);
+    }
+  };
 
   // Handle filter changes
   const handleFilterChange = (e) => {
@@ -120,6 +95,11 @@ function HistoryPage() {
         [name]: value
       });
     }
+    // Reset to first page when filters change
+    setPagination({
+      ...pagination,
+      currentPage: 1
+    });
   };
 
   // Handle reset filters
@@ -132,6 +112,11 @@ function HistoryPage() {
       },
       status: ''
     });
+    // Reset to first page when filters reset
+    setPagination({
+      ...pagination,
+      currentPage: 1
+    });
   };
 
   // Handle page change
@@ -142,45 +127,95 @@ function HistoryPage() {
     });
   };
 
-  // Filter records based on search and filters
-  const filteredRecords = historyRecords.filter(record => {
-    // Search filter (check in student ID or car plate)
-    const searchMatch = filters.search === '' || 
-      record.studentId.toLowerCase().includes(filters.search.toLowerCase()) ||
-      record.carPlate.toLowerCase().includes(filters.search.toLowerCase());
+  // Export data functions
+  const handleExportExcel = async () => {
+    try {
+      // Create params with all current filters for the export
+      const params = new URLSearchParams();
       
-    // Status filter
-    const statusMatch = filters.status === '' || record.status === filters.status;
-    
-    // Date range filter
-    let dateMatch = true;
-    if (filters.dateRange.from !== '' || filters.dateRange.to !== '') {
-      const recordDate = new Date(record.checkInTime);
-      
-      if (filters.dateRange.from !== '') {
-        const fromDate = new Date(filters.dateRange.from);
-        if (recordDate < fromDate) {
-          dateMatch = false;
-        }
+      if (filters.search) {
+        params.append('search', filters.search);
       }
       
-      if (filters.dateRange.to !== '') {
-        const toDate = new Date(filters.dateRange.to);
-        toDate.setHours(23, 59, 59);
-        if (recordDate > toDate) {
-          dateMatch = false;
-        }
+      if (filters.status) {
+        params.append('status', filters.status);
       }
+      
+      if (filters.dateRange.from) {
+        params.append('fromDate', filters.dateRange.from);
+      }
+      
+      if (filters.dateRange.to) {
+        params.append('toDate', filters.dateRange.to);
+      }
+      
+      // Call export API with filters
+      const response = await axios.get('/api/history/export/excel', { 
+        params,
+        responseType: 'blob' 
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `parking-history-${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Error exporting to Excel:', err);
+      alert('Failed to export data. Please try again later.');
     }
-    
-    return searchMatch && statusMatch && dateMatch;
-  });
-  
-  // Paginate records
-  const indexOfLastRecord = pagination.currentPage * pagination.recordsPerPage;
-  const indexOfFirstRecord = indexOfLastRecord - pagination.recordsPerPage;
-  const currentRecords = filteredRecords.slice(indexOfFirstRecord, indexOfLastRecord);
-  const totalPages = Math.ceil(filteredRecords.length / pagination.recordsPerPage);
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      // Create params with all current filters for the export
+      const params = new URLSearchParams();
+      
+      if (filters.search) {
+        params.append('search', filters.search);
+      }
+      
+      if (filters.status) {
+        params.append('status', filters.status);
+      }
+      
+      if (filters.dateRange.from) {
+        params.append('fromDate', filters.dateRange.from);
+      }
+      
+      if (filters.dateRange.to) {
+        params.append('toDate', filters.dateRange.to);
+      }
+      
+      // Call export API with filters
+      const response = await axios.get('/api/history/export/pdf', { 
+        params,
+        responseType: 'blob' 
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `parking-history-${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Error exporting to PDF:', err);
+      alert('Failed to export data. Please try again later.');
+    }
+  };
+
+  // Function to view full-size image
+  const handleViewImage = (imageUrl) => {
+    // You could implement a modal here to show the full-size image
+    // For now, we'll use a placeholder alert
+    window.alert('Viewing full-size image: ' + imageUrl);
+  };
 
   return (
     <div className="content">
@@ -249,105 +284,101 @@ function HistoryPage() {
       {/* History Table */}
       <div className="card">
         <h2 style={{ marginBottom: '15px' }}>Lịch sử ra vào</h2>
-        <table className="history-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Mã sinh viên</th>
-              <th>Biển số xe</th>
-              <th>Thời gian vào</th>
-              <th>Thời gian ra</th>
-              <th>Ảnh vào</th>
-              <th>Ảnh ra</th>
-              <th>Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentRecords.length > 0 ? (
-              currentRecords.map(record => (
-                <tr key={record.id}>
-                  <td>{record.id}</td>
-                  <td>{record.studentId}</td>
-                  <td>{record.carPlate}</td>
-                  <td>{record.checkInTime}</td>
-                  <td>{record.checkOutTime || "—"}</td>
-                  <td>
-                    <img 
-                      src={record.checkInImage} 
-                      alt="Check-in" 
-                      className="history-image"
-                      onClick={() => window.alert('Xem ảnh lớn')} // Placeholder for image modal
-                    />
-                  </td>
-                  <td>
-                    {record.checkOutImage ? (
-                      <img 
-                        src={record.checkOutImage} 
-                        alt="Check-out" 
-                        className="history-image"
-                        onClick={() => window.alert('Xem ảnh lớn')} // Placeholder for image modal
-                      />
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td>
-                    <span className={`status-badge ${record.status}`}>
-                      {record.status === 'active' ? 'Đang đỗ' : 'Đã rời đi'}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="8" className="no-records">Không tìm thấy bản ghi nào</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {/* Pagination */}
-        {filteredRecords.length > 0 && (
-          <div className="pagination">
-            <button 
-              className="pagination-btn" 
-              disabled={pagination.currentPage === 1}
-              onClick={() => handlePageChange(pagination.currentPage - 1)}
-            >
-              <i className="fas fa-chevron-left"></i>
-            </button>
-            
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                className={`pagination-btn ${pagination.currentPage === page ? 'active' : ''}`}
-                onClick={() => handlePageChange(page)}
-              >
-                {page}
-              </button>
-            ))}
-            
-            <button 
-              className="pagination-btn" 
-              disabled={pagination.currentPage === totalPages}
-              onClick={() => handlePageChange(pagination.currentPage + 1)}
-            >
-              <i className="fas fa-chevron-right"></i>
-            </button>
-            
-            <span className="pagination-info">
-              Hiển thị {indexOfFirstRecord + 1}-{Math.min(indexOfLastRecord, filteredRecords.length)} của {filteredRecords.length} bản ghi
-            </span>
+        
+        {loading ? (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <p>Đang tải dữ liệu...</p>
           </div>
+        ) : error ? (
+          <div className="error-message">
+            <i className="fas fa-exclamation-triangle"></i>
+            <p>{error}</p>
+            <button onClick={fetchHistoryRecords}>Thử lại</button>
+          </div>
+        ) : (
+          <>
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Mã lịch sử</th>
+                  <th>Mã sinh viên</th>
+                  <th>Biển số xe</th>
+                  <th>Thời gian vào</th>
+                  <th>Thời gian ra</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyRecords.length > 0 ? (
+                  historyRecords.map(record => (
+                    <tr key={record.ma_lich_su}>
+                      <td>{record.ma_lich_su}</td>
+                      <td>{record.sinh_vien.ma_sv}</td>
+                      <td>{record.bien_so_xe}</td>
+                      <td>{record.thoi_gian_vao}</td>
+                      <td>{record.thoi_gian_ra || "—"}</td>
+                      <td>
+                        <span className={`status-badge ${record.trang_thai}`}>
+                          {record.trang_thai}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="no-records">Không tìm thấy bản ghi nào</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {/* Pagination */}
+            {pagination.totalRecords > 0 && (
+              <div className="pagination">
+                <button 
+                  className="pagination-btn" 
+                  disabled={pagination.currentPage === 1}
+                  onClick={() => handlePageChange(pagination.currentPage - 1)}
+                >
+                  <i className="fas fa-chevron-left"></i>
+                </button>
+                
+                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    className={`pagination-btn ${pagination.currentPage === page ? 'active' : ''}`}
+                    onClick={() => handlePageChange(page)}
+                  >
+                    {page}
+                  </button>
+                ))}
+                
+                <button 
+                  className="pagination-btn" 
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  onClick={() => handlePageChange(pagination.currentPage + 1)}
+                >
+                  <i className="fas fa-chevron-right"></i>
+                </button>
+                
+                <span className="pagination-info">
+                  Hiển thị {((pagination.currentPage - 1) * pagination.recordsPerPage) + 1}-
+                  {Math.min(pagination.currentPage * pagination.recordsPerPage, pagination.totalRecords)} 
+                  của {pagination.totalRecords} bản ghi
+                </span>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/* Export Buttons */}
       <div className="export-buttons">
-        <button className="btn-export">
+        <button className="btn-export" onClick={handleExportExcel} disabled={loading || historyRecords.length === 0}>
           <i className="fas fa-file-excel"></i> Xuất Excel
         </button>
-        <button className="btn-export">
+        <button className="btn-export" onClick={handleExportPDF} disabled={loading || historyRecords.length === 0}>
           <i className="fas fa-file-pdf"></i> Xuất PDF
         </button>
       </div>

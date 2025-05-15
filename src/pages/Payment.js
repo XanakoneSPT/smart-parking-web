@@ -1,83 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Footer from '../components/Footer';
 import './styles/style-payment.css';
+import axios from 'axios';
+import { API_URL } from '../services/api'; // Adjust the import path as necessary
 
 function Payment() {
   // State for payments
-  const [payments, setPayments] = useState([
-    { 
-      id: 'PAY-2025-0412', 
-      MSSV: '102220013', 
-      licenseNumber: '29A-12345', 
-      amount: 2000, 
-      date: '2025-04-02 10:30',
-      method: 'Card',
-      status: 'completed',
-    },
-    { 
-      id: 'PAY-2025-0411', 
-      MSSV: '101220012', 
-      licenseNumber: '30A-54321', 
-      amount: 2000, 
-      date: '2025-04-02 09:15',
-      method: 'Mobile Payment',
-      status: 'completed',
-    },
-    { 
-      id: 'PAY-2025-0410', 
-      MSSV: '101220011', 
-      licenseNumber: '29B-78945', 
-      amount: 2000, 
-      date: '2025-04-01 16:45',
-      method: 'Cash',
-      status: 'completed',
-    },
-    { 
-      id: 'PAY-2025-0409', 
-      MSSV: '102220010', 
-      licenseNumber: '33A-36987', 
-      amount: 2000, 
-      date: '2025-04-01 15:20',
-      method: 'Card',
-      status: 'refunded',
-    },
-    { 
-      id: 'PAY-2025-0408', 
-      MSSV: '102220009', 
-      licenseNumber: '30B-25874', 
-      amount: 2000, 
-      date: '2025-04-01 12:05',
-      method: 'Mobile Payment',
-      status: 'completed',
-    },
-    { 
-      id: 'PAY-2025-0407', 
-      MSSV: '102220008', 
-      licenseNumber: '29C-78541', 
-      amount: 2000, 
-      date: '2025-04-01 10:30',
-      method: 'Mobile Payment',
-      status: 'pending',
-    },
-    { 
-      id: 'PAY-2025-0406', 
-      MSSV: '102220007', 
-      licenseNumber: '30A-36985', 
-      amount: 2000, 
-      date: '2025-03-31 18:45',
-      method: 'Card',
-      status: 'completed',
-    },
-    { 
-      id: 'PAY-2025-0405', 
-      MSSV: '102220006', 
-      licenseNumber: '33B-78965', 
-      amount: 2000, 
-      date: '2025-03-31 14:20',
-      method: 'Cash',
-      status: 'completed',
-    }
-  ]);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // State for search term
   const [searchTerm, setSearchTerm] = useState('');
@@ -105,56 +36,102 @@ function Payment() {
     parkingSpot: ''
   });
   
+  // State for revenue data
+  const [revenueData, setRevenueData] = useState({ dates: [], revenues: [] });
+  
   // Charts refs
   const revenueChartRef = useRef(null);
   const paymentMethodChartRef = useRef(null);
   const revenueChartInstance = useRef(null);
   const paymentMethodChartInstance = useRef(null);
 
+  // Fetch payment data from API
+  useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`${API_URL}/api_users/lichsuthanhtoan`);
+        console.log('Payment data:', response.data); // Debugging line
+        setPayments(response.data);
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to fetch payment data');
+        setLoading(false);
+        console.error('Error fetching payment data:', err);
+      }
+    };
+
+    fetchPayments();
+  }, []);
+
+  // Process revenue data from API
+  useEffect(() => {
+    if (payments.length > 0) {
+      // Group payments by date and calculate total revenue for each date
+      const paymentsByDate = payments.reduce((acc, payment) => {
+        // Format date (without time)
+        const date = new Date(payment.thoi_gian).toLocaleDateString('vi-VN');
+        
+        if (!acc[date]) {
+          acc[date] = 0;
+        }
+        
+        acc[date] += payment.so_tien;
+        return acc;
+      }, {});
+      
+      // Convert to arrays for chart
+      const dates = Object.keys(paymentsByDate);
+      const revenues = Object.values(paymentsByDate);
+      
+      setRevenueData({ dates, revenues });
+    }
+  }, [payments]);
+
   // Filter payments based on search and filters
   const filteredPayments = payments.filter(payment => {
-    // Search filter
+    // Search filter - check if MSSV or ma_thanh_toan includes the search term
     const matchesSearch = 
-      payment.MSSV.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.licenseNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      (payment.sinh_vien?.ma_sv?.toString() || '').includes(searchTerm.toLowerCase()) ||
+      (payment.ma_thanh_toan?.toString() || '').includes(searchTerm.toLowerCase());
     
     // Date filter
     let matchesDate = true;
-    const paymentDate = new Date(payment.date);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (dateFilter === 'today') {
-      matchesDate = paymentDate.toDateString() === today.toDateString();
-    } else if (dateFilter === 'yesterday') {
-      matchesDate = paymentDate.toDateString() === yesterday.toDateString();
-    } else if (dateFilter === 'thisWeek') {
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - today.getDay());
-      matchesDate = paymentDate >= weekStart;
+    if (payment.thoi_gian) {
+      const paymentDate = new Date(payment.thoi_gian);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      if (dateFilter === 'today') {
+        matchesDate = paymentDate.toDateString() === today.toDateString();
+      } else if (dateFilter === 'yesterday') {
+        matchesDate = paymentDate.toDateString() === yesterday.toDateString();
+      } else if (dateFilter === 'thisWeek') {
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        matchesDate = paymentDate >= weekStart;
+      }
     }
     
-    // Status filter
+    // Status filter (if we add status later)
     const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
     
-    // Method filter
+    // Method filter (if we add method later)
     const matchesMethod = methodFilter === 'all' || payment.method === methodFilter;
-    
+        
     return matchesSearch && matchesDate && matchesStatus && matchesMethod;
   });
 
   // Calculate statistics
-  const totalRevenue = filteredPayments.reduce((sum, payment) => 
-    payment.status !== 'refunded' ? sum + payment.amount : sum, 0);
+  const totalRevenue = filteredPayments.reduce((sum, payment) => sum + payment.so_tien, 0);
   
-  const averageAmount = filteredPayments.length > 0 ? 
-    totalRevenue / filteredPayments.filter(p => p.status !== 'refunded').length : 0;
+  const averageAmount = filteredPayments.length > 0 ? totalRevenue / filteredPayments.length : 0;
   
-  const completedPayments = filteredPayments.filter(p => p.status === 'completed').length;
-  const refundedPayments = filteredPayments.filter(p => p.status === 'refunded').length;
-  const pendingPayments = filteredPayments.filter(p => p.status === 'pending').length;
+  // These might need to be adjusted if status is added later
+  const completedPayments = filteredPayments.length;
+  const refundedPayments = 0;
+  const pendingPayments = 0;
 
   // Handle search input change
   const handleSearchChange = (e) => {
@@ -180,18 +157,6 @@ function Payment() {
     setIsReceiptModalOpen(true);
   };
 
-  // Handle refund
-  const handleRefund = (paymentId) => {
-    if (window.confirm('Bạn có chắc chắn muốn hoàn tiền cho giao dịch này?')) {
-      setPayments(payments.map(payment => {
-        if (payment.id === paymentId) {
-          return { ...payment, status: 'refunded' };
-        }
-        return payment;
-      }));
-    }
-  };
-
   // Handle invoice input change
   const handleInvoiceInputChange = (e) => {
     const { name, value } = e.target;
@@ -201,35 +166,41 @@ function Payment() {
     });
   };
 
-  // Handle invoice form submission
-  const handleInvoiceSubmit = (e) => {
+  // Handle invoice form submission - adjust as needed for your API
+  const handleInvoiceSubmit = async (e) => {
     e.preventDefault();
     
-    // Generate new payment ID
-    const newId = `PAY-2025-${(parseInt(payments[0].id.split('-')[2]) + 1).toString().padStart(4, '0')}`;
-    
-    // Create new payment record
-    const newPayment = {
-      id: newId,
-      MSSV: invoiceDetails.MSSV,
-      licenseNumber: invoiceDetails.licenseNumber,
-      amount: Number(invoiceDetails.amount),
-      date: new Date().toISOString().replace('T', ' ').substring(0, 16),
-      method: 'Pending',
-      status: 'pending',
-    };
-    
-    // Add new payment to the list
-    setPayments([newPayment, ...payments]);
-    
-    // Close modal and reset form
-    setIsInvoiceModalOpen(false);
-    setInvoiceDetails({
-      MSSV: '',
-      licenseNumber: '',
-      email: '',
-      amount: '',
-      parkingSpot: ''
+    try {
+      // Send new payment data to API
+      const response = await axios.post(`${API_URL}/api/payments`, invoiceDetails);
+      
+      // Add new payment to the list
+      setPayments([response.data, ...payments]);
+      
+      // Close modal and reset form
+      setIsInvoiceModalOpen(false);
+      setInvoiceDetails({
+        MSSV: '',
+        licenseNumber: '',
+        email: '',
+        amount: '',
+        parkingSpot: ''
+      });
+    } catch (err) {
+      alert('Failed to create new invoice. Please try again.');
+      console.error('Error creating invoice:', err);
+    }
+  };
+
+  // Format date string for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -258,32 +229,24 @@ function Payment() {
     };
 
     const initCharts = async () => {
+      if (!payments.length) return;
+      
       const Chart = await loadChartJs();
       
-      // Revenue data (last 7 days)
-      const dates = [];
-      const revenueData = [];
+      // Use API data for revenue chart
+      const { dates, revenues } = revenueData;
       
-      // Generate last 7 days
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        dates.push(date.toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' }));
-        
-        // Random revenue between 500k and 1.5M for demo
-        revenueData.push(Math.floor(Math.random() * 1000000) + 500000);
-      }
-      
-      // Payment methods data
+      // Since we don't have payment methods in the current data,
+      // we'll use dummy data for the payment method chart
       const methodLabels = ['Thẻ tín dụng', 'Thanh toán di động', 'Tiền mặt'];
       const methodCounts = [
-        payments.filter(p => p.method === 'Credit Card').length,
-        payments.filter(p => p.method === 'Mobile Payment').length,
-        payments.filter(p => p.method === 'Cash').length
+        Math.floor(payments.length * 0.5), // 50% credit card
+        Math.floor(payments.length * 0.3), // 30% mobile payment
+        payments.length - Math.floor(payments.length * 0.5) - Math.floor(payments.length * 0.3) // remainder for cash
       ];
       
       // Create the revenue chart
-      if (revenueChartRef.current) {
+      if (revenueChartRef.current && dates.length > 0) {
         // Destroy existing chart if it exists
         if (revenueChartInstance.current) {
           revenueChartInstance.current.destroy();
@@ -296,7 +259,7 @@ function Payment() {
             labels: dates,
             datasets: [{
               label: 'Doanh thu (VND)',
-              data: revenueData,
+              data: revenues,
               fill: true,
               backgroundColor: 'rgba(75, 192, 192, 0.2)',
               borderColor: 'rgba(75, 192, 192, 1)',
@@ -365,16 +328,13 @@ function Payment() {
               }
             },
             layout: {
-              // padding: 20
               padding: {
                 left: 10,
                 right: 10,
-                top: 200,
+                top: 20,
                 bottom: 20
               }
-            },
-            // cutout: '60%',
-            // radius: '70%'
+            }
           }
         });
       }
@@ -391,7 +351,7 @@ function Payment() {
         paymentMethodChartInstance.current.destroy();
       }
     };
-  }, [payments]); // Re-run if payments change
+  }, [payments, revenueData]); // Re-run if payments or revenueData change
 
   return (
     <>
@@ -438,20 +398,6 @@ function Payment() {
               <i className="fas fa-receipt"></i>
             </div>
           </div>
-          <div className="card stat-card">
-            <div className="stat-info">
-              <h3>{pendingPayments}</h3>
-              <p>Thanh toán đang chờ</p>
-              {pendingPayments > 0 && (
-                <div className="trend warning">
-                  <i className="fas fa-exclamation-circle"></i> Cần xử lý
-                </div>
-              )}
-            </div>
-            <div className="icon danger-bg">
-              <i className="fas fa-hourglass-half"></i>
-            </div>
-          </div>
         </div>
 
         {/* Filter Controls */}
@@ -480,32 +426,6 @@ function Payment() {
                 <option value="thisWeek">Tuần này</option>
               </select>
             </div>
-            
-            <div className="filter-group">
-              <label>Trạng thái</label>
-              <select 
-                value={statusFilter} 
-                onChange={handleStatusFilterChange}
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="completed">Đã hoàn thành</option>
-                <option value="pending">Đang chờ</option>
-                <option value="refunded">Đã hoàn tiền</option>
-              </select>
-            </div>
-            
-            <div className="filter-group">
-              <label>Phương thức</label>
-              <select 
-                value={methodFilter} 
-                onChange={handleMethodFilterChange}
-              >
-                <option value="all">Tất cả phương thức</option>
-                <option value="Credit Card">Thẻ tín dụng</option>
-                <option value="Mobile Payment">Thanh toán di động</option>
-                <option value="Cash">Tiền mặt</option>
-              </select>
-            </div>
           </div>
         </div>
 
@@ -514,63 +434,71 @@ function Payment() {
           <h2 className="card-title">Danh sách giao dịch</h2>
           
           <div className="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Mã Nạp Tiền</th>
-                  <th>MSSV</th>
-                  <th>Biển số xe</th>
-                  <th>Thời gian</th>
-                  <th>Số tiền</th>
-                  <th>Phương thức</th>
-                  <th>Trạng thái</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPayments.map(payment => (
-                  <tr key={payment.id}>
-                    <td>{payment.id}</td>
-                    <td>{payment.MSSV}</td>
-                    <td>{payment.licenseNumber}</td>
-                    <td>{payment.date}</td>
-                    <td>{payment.amount.toLocaleString('vi-VN')} đ</td>
-                    <td>{payment.method}</td>
-                    <td>
-                      <span className={`status ${
-                        payment.status === 'completed' ? 'available' : 
-                        payment.status === 'refunded' ? 'occupied' : 'warning'
-                      }`}>
-                        {payment.status === 'completed' ? 'Đã hoàn thành' : 
-                         payment.status === 'refunded' ? 'Đã hoàn tiền' : 'Đang chờ'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button 
-                          onClick={() => handleViewReceipt(payment)}
-                          title="Xem hóa đơn"
-                          className="btn-primary action-btn"
-                        >
-                          <i className="fas fa-file-invoice"></i>
-                        </button>
-                        {payment.status === 'completed' && (
-                          <button 
-                            onClick={() => handleRefund(payment.id)}
-                            title="Hoàn tiền"
-                            className="btn-warning action-btn"
-                          >
-                            <i className="fas fa-undo-alt"></i>
-                          </button>
-                        )}
-                      </div>
-                    </td>
+            {loading ? (
+              <div className="table-loading-state">
+                <div className="loading-spinner"></div>
+                <p>Đang tải dữ liệu thanh toán...</p>
+              </div>
+            ) : filteredPayments.length === 0 ? (
+              <div className="no-data">
+                <i className="fas fa-search"></i>
+                <p>Không tìm thấy giao dịch nào phù hợp với bộ lọc</p>
+              </div>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mã Nạp Tiền</th>
+                    <th>MSSV</th>
+                    <th>Họ tên</th>
+                    <th>Thời gian</th>
+                    <th>Số tiền</th>
+                    <th>Thao tác</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredPayments.map(payment => (
+                    <tr key={payment.ma_thanh_toan}>
+                      <td>{payment.ma_thanh_toan}</td>
+                      <td>{payment.sinh_vien?.ma_sv}</td>
+                      <td>{payment.sinh_vien?.ho_ten}</td>
+                      <td>{formatDate(payment.thoi_gian)}</td>
+                      <td>{payment.so_tien?.toLocaleString('vi-VN')} đ</td>
+                      <td>
+                        <div className="action-buttons">
+                          <button 
+                            onClick={() => handleViewReceipt(payment)}
+                            title="Xem hóa đơn"
+                            className="btn-primary action-btn"
+                          >
+                            <i className="fas fa-file-invoice"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
+
+        {/* Error Display - Only shown when there's an error */}
+        {error && (
+          <div className="card error-card">
+            <div className="error-icon">
+              <i className="fas fa-exclamation-triangle"></i>
+            </div>
+            <h2>Lỗi khi tải dữ liệu</h2>
+            <p>{error}</p>
+            <button 
+              className="btn-primary"
+              onClick={() => window.location.reload()}
+            >
+              Thử lại
+            </button>
+          </div>
+        )}
 
         {/* Payment Analytics */}
         <div className="chart-container">
@@ -578,96 +506,38 @@ function Payment() {
             <h2 className="card-title">Doanh thu 7 ngày qua</h2>
             <canvas ref={revenueChartRef} width="350" height="250"></canvas>
           </div>
-          <div className="card chart">
-            <h2 className="card-title">Phương thức thanh toán</h2>
-            <div className="chart-wrapper">
-              <canvas ref={paymentMethodChartRef} width="350" height="250"></canvas>
-            </div>
-          </div>
         </div>
 
         {/* Payment Status Summary */}
         <div className="tables-container">
           <div className="card">
-            <h2 className="card-title">Tóm tắt trạng thái thanh toán</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Trạng thái</th>
-                  <th>Số lượng</th>
-                  <th>Tỷ lệ</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Đã hoàn thành</td>
-                  <td>{completedPayments}</td>
-                  <td>
-                    <div className="progress-bar">
-                      <div 
-                        className="progress success-bg" 
-                        style={{ width: `${(completedPayments / filteredPayments.length) * 100}%` }}
-                      ></div>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Đang chờ</td>
-                  <td>{pendingPayments}</td>
-                  <td>
-                    <div className="progress-bar">
-                      <div 
-                        className="progress warning-bg" 
-                        style={{ width: `${(pendingPayments / filteredPayments.length) * 100}%` }}
-                      ></div>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Đã hoàn tiền</td>
-                  <td>{refundedPayments}</td>
-                  <td>
-                    <div className="progress-bar">
-                      <div 
-                        className="progress danger-bg" 
-                        style={{ width: `${(refundedPayments / filteredPayments.length) * 100}%` }}
-                      ></div>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="card">
             <h2 className="card-title">Giao dịch gần đây nhất</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Thời gian</th>
-                  <th>Số tiền</th>
-                  <th>Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.slice(0, 5).map(payment => (
-                  <tr key={`recent-${payment.id}`}>
-                    <td>{payment.id}</td>
-                    <td>{payment.date}</td>
-                    <td>{payment.amount.toLocaleString('vi-VN')} đ</td>
-                    <td>
-                      <span className={`status ${
-                        payment.status === 'completed' ? 'available' : 
-                        payment.status === 'refunded' ? 'occupied' : 'warning'
-                      }`}>
-                        {payment.status === 'completed' ? 'Đã hoàn thành' : 
-                         payment.status === 'refunded' ? 'Đã hoàn tiền' : 'Đang chờ'}
-                      </span>
-                    </td>
+            {payments.length > 0 ? (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mã thanh toán</th>
+                    <th>MSSV</th>
+                    <th>Thời gian</th>
+                    <th>Số tiền</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {payments.slice(0, 5).map(payment => (
+                    <tr key={`recent-${payment.ma_thanh_toan}`}>
+                      <td>{payment.ma_thanh_toan}</td>
+                      <td>{payment.sinh_vien?.ma_sv}</td>
+                      <td>{formatDate(payment.thoi_gian)}</td>
+                      <td>{payment.so_tien?.toLocaleString('vi-VN')} đ</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="no-data">
+                <p>Chưa có giao dịch nào</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -693,37 +563,37 @@ function Payment() {
               <div className="receipt-details">
                 <div className="receipt-row">
                   <strong>Mã giao dịch:</strong>
-                  <span>{selectedPayment.id}</span>
+                  <span>{selectedPayment.ma_thanh_toan}</span>
                 </div>
                 <div className="receipt-row">
                   <strong>Ngày giờ:</strong>
-                  <span>{selectedPayment.date}</span>
-                </div>
-                <div className="receipt-row">
-                  <strong>Phương thức:</strong>
-                  <span>{selectedPayment.method}</span>
+                  <span>{formatDate(selectedPayment.thoi_gian)}</span>
                 </div>
               </div>
               
               <div className="receipt-customer-info">
                 <div className="receipt-row">
                   <span>Khách hàng:</span>
-                  <span>{selectedPayment.MSSV}</span>
+                  <span>{selectedPayment.sinh_vien?.ho_ten} (MSSV: {selectedPayment.sinh_vien?.ma_sv})</span>
                 </div>
                 <div className="receipt-row">
-                  <span>Biển số xe:</span>
-                  <span>{selectedPayment.licenseNumber}</span>
+                  <span>RFID:</span>
+                  <span>{selectedPayment.sinh_vien?.id_rfid}</span>
                 </div>
                 <div className="receipt-row">
                   <span>Số tiền:</span>
-                  <span>{selectedPayment.amount.toLocaleString('vi-VN')} đ</span>
+                  <span>{selectedPayment.so_tien?.toLocaleString('vi-VN')} đ</span>
+                </div>
+                <div className="receipt-row">
+                  <span>Số dư hiện tại:</span>
+                  <span>{selectedPayment.sinh_vien?.so_tien_hien_co?.toLocaleString('vi-VN')} đ</span>
                 </div>
               </div>
               
               <div className="receipt-total">
                 <strong>Tổng cộng: </strong>
                 <span className="total-amount">
-                  {selectedPayment.amount.toLocaleString('vi-VN')} đ
+                  {selectedPayment.so_tien?.toLocaleString('vi-VN')} đ
                 </span>
               </div>
               
@@ -734,13 +604,84 @@ function Payment() {
                 >
                   Đóng
                 </button>
+                <button 
+                  onClick={() => {
+                    // Print receipt functionality
+                    window.print();
+                  }}
+                  className="btn-secondary"
+                >
+                  <i className="fas fa-print"></i> In hóa đơn
+                </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Invoice Modal */}
+        {isInvoiceModalOpen && (
+          <div className="modal-overlay">
+            <div className="modal invoice-modal">
+              <div className="modal-header">
+                <h2>Tạo hóa đơn mới</h2>
+                <button 
+                  onClick={() => setIsInvoiceModalOpen(false)}
+                  className="close-btn"
+                >
+                  &times;
+                </button>
+              </div>
+              
+              <form onSubmit={handleInvoiceSubmit}>
+                <div className="form-group">
+                  <label htmlFor="MSSV">MSSV:</label>
+                  <input 
+                    type="text" 
+                    id="MSSV" 
+                    name="MSSV"
+                    value={invoiceDetails.MSSV}
+                    onChange={handleInvoiceInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="amount">Số tiền (VND):</label>
+                  <input 
+                    type="number" 
+                    id="amount" 
+                    name="amount"
+                    value={invoiceDetails.amount}
+                    onChange={handleInvoiceInputChange}
+                    min="1000"
+                    step="1000"
+                    required
+                  />
+                </div>
+                
+                <div className="modal-footer">
+                  <button 
+                    type="button"
+                    onClick={() => setIsInvoiceModalOpen(false)}
+                    className="btn-secondary"
+                  >
+                    Hủy
+                  </button>
+                  <button 
+                    type="submit"
+                    className="btn-primary"
+                  >
+                    Tạo hóa đơn
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
         <Footer />
       </div>
     </>
-    );
+  );
 }
+
 export default Payment;
