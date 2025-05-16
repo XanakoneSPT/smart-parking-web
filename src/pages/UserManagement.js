@@ -10,7 +10,6 @@ import AutoFetchControl from '../components/AutoFetchControl';
 function UserManagement() {
   // State
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
@@ -44,7 +43,6 @@ function UserManagement() {
 
   // Fetch users function
   const fetchUsers = async () => {
-    setLoading(true);
     setError(null);
     
     try {
@@ -62,8 +60,6 @@ function UserManagement() {
       console.error('Error fetching users:', err);
       setError('Failed to fetch users data. Please try again later.');
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -318,24 +314,6 @@ function UserManagement() {
     }
   };
 
-  const updateUserMoney = async (userId, newValue) => {
-    setError(null);
-    
-    try {
-      const user = users.find(u => u.ma_sv === userId);
-      const newMoney = user.so_tien_hien_co === 'inactive' ? 100000 : 'inactive';
-      
-      // Note: the server might need to support PATCH, otherwise we might need to use PUT
-      await apiService.post(`api_users/sinhvien/${userId}/money/`, { 
-        so_tien_hien_co: newMoney 
-      });
-      
-      manualFetch(); // Refresh user data
-    } catch (err) {
-      console.error('Error updating user money:', err);
-      setError('Failed to update user balance. Please try again.');
-    }
-  };
 
   // Helper Functions
   const formatMoney = (value) => {
