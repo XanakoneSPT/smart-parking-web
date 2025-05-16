@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import './styles/style-history.css';
 import Footer from '../components/Footer';
-import axios from 'axios';
-import { API_URL } from '../services/api';
+import { API_URL, apiService } from '../services/api';
+import TablePagination from '../components/TablePagination';
+import useAutoFetch from '../hooks/useAutoFetch';
+import { useAutoFetchSettings } from '../context/AutoFetchContext';
+import AutoFetchControl from '../components/AutoFetchControl';
 
 function HistoryPage() {
   // State for history records
   const [historyRecords, setHistoryRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastFetchTime, setLastFetchTime] = useState(null);
+
+  // Get auto-fetch settings
+  const { interval, globalEnabled } = useAutoFetchSettings();
 
   // State for filters
   const [filters, setFilters] = useState({
@@ -17,7 +24,8 @@ function HistoryPage() {
       from: '',
       to: ''
     },
-    status: ''
+    status: '',
+    sortOrder: 'newest' // Default sort order: newest to oldest
   });
 
   // State for pagination
@@ -29,54 +37,114 @@ function HistoryPage() {
   });
 
   // Fetch history records from API
-  useEffect(() => {
-    fetchHistoryRecords();
-  }, [filters, pagination.currentPage, pagination.recordsPerPage]);
-
   const fetchHistoryRecords = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Prepare query parameters
-      const params = new URLSearchParams();
-      params.append('page', pagination.currentPage);
-      params.append('limit', pagination.recordsPerPage);
+      // Prepare parameters based on filters and pagination
+      const params = {
+        page: pagination.currentPage,
+        limit: pagination.recordsPerPage,
+        sortOrder: filters.sortOrder
+      };
       
+      // Add filters to params if they exist
       if (filters.search) {
-        params.append('search', filters.search);
+        params.search = filters.search;
       }
       
       if (filters.status) {
-        params.append('status', filters.status);
+        params.status = filters.status;
       }
       
       if (filters.dateRange.from) {
-        params.append('fromDate', filters.dateRange.from);
+        params.fromDate = filters.dateRange.from;
       }
       
       if (filters.dateRange.to) {
-        params.append('toDate', filters.dateRange.to);
+        params.toDate = filters.dateRange.to;
       }
       
       // Make API call
-      const response = await axios.get(`${API_URL}/api_users/lichsuravao`, { params });
-      console.log('API Response:', response.data);
+      const response = await apiService.get('api_users/lichsuravao/', { params });
+      console.log('Fetching users from:', `${API_URL}api_users/lichsuravao/`);
       
-      // Update state with API response
-      setHistoryRecords(response.data);
+      // Check if the response data is an array or has pagination info
+      let records = [];
+      let totalCount = 0;
+      
+      if (Array.isArray(response.data)) {
+        // API returns all records, implement client-side pagination
+        let allRecords = response.data;
+        
+        // Apply client-side sorting if needed
+        if (filters.sortOrder === 'newest') {
+          allRecords.sort((a, b) => new Date(b.thoi_gian_vao) - new Date(a.thoi_gian_vao));
+        } else if (filters.sortOrder === 'oldest') {
+          allRecords.sort((a, b) => new Date(a.thoi_gian_vao) - new Date(b.thoi_gian_vao));
+        }
+        
+        totalCount = allRecords.length;
+        
+        // Calculate slicing indexes based on current page and records per page
+        const startIndex = (pagination.currentPage - 1) * pagination.recordsPerPage;
+        const endIndex = startIndex + pagination.recordsPerPage;
+        
+        // Slice the records based on current page and records per page
+        records = allRecords.slice(startIndex, endIndex);
+      } else if (response.data.records) {
+        // API already returns paginated data
+        records = response.data.records;
+        totalCount = response.data.totalRecords || response.data.records.length;
+      } else {
+        // Fallback if the structure is unexpected
+        records = response.data;
+        totalCount = response.data.length;
+      }
+      
+      // Update state with paginated data
+      setHistoryRecords(records);
       setPagination({
         ...pagination,
-        totalRecords: response.data.totalRecords,
-        totalPages: response.data.totalPages
+        totalRecords: totalCount,
+        totalPages: Math.ceil(totalCount / pagination.recordsPerPage)
       });
       
+      setLastFetchTime(new Date());
       setLoading(false);
+      
+      return records;
     } catch (err) {
       console.error('Error fetching history records:', err);
       setError('Failed to load history records. Please try again later.');
       setLoading(false);
+      throw err;
     }
   };
+
+  // Use auto-fetch hook
+  const {
+    data: autoFetchedRecords,
+    isLoading: isLoadingRecords,
+    error: autoFetchError,
+    manualFetch
+  } = useAutoFetch(
+    fetchHistoryRecords,
+    interval,
+    globalEnabled,
+    [filters, pagination.currentPage, pagination.recordsPerPage]
+  );
+  
+  // Update state when auto-fetched data changes
+  useEffect(() => {
+    if (autoFetchedRecords && !isLoadingRecords) {
+      setHistoryRecords(autoFetchedRecords);
+    }
+    if (autoFetchError) {
+      setError(autoFetchError.message || 'Failed to fetch history records');
+    }
+  }, [autoFetchedRecords, isLoadingRecords, autoFetchError]);
 
   // Handle filter changes
   const handleFilterChange = (e) => {
@@ -110,7 +178,8 @@ function HistoryPage() {
         from: '',
         to: ''
       },
-      status: ''
+      status: '',
+      sortOrder: 'newest'
     });
     // Reset to first page when filters reset
     setPagination({
@@ -127,30 +196,52 @@ function HistoryPage() {
     });
   };
 
+  // Handle records per page change
+  const handleRecordsPerPageChange = (recordsPerPage) => {
+    setPagination({
+      ...pagination,
+      recordsPerPage: recordsPerPage,
+      currentPage: 1 // Reset to first page when changing records per page
+    });
+  };
+
+  // Add a handler for sort order change
+  const handleSortOrderChange = (e) => {
+    setFilters({
+      ...filters,
+      sortOrder: e.target.value
+    });
+    // Reset to first page when sort order changes
+    setPagination({
+      ...pagination,
+      currentPage: 1
+    });
+  };
+
   // Export data functions
   const handleExportExcel = async () => {
     try {
       // Create params with all current filters for the export
-      const params = new URLSearchParams();
+      const params = {};
       
       if (filters.search) {
-        params.append('search', filters.search);
+        params.search = filters.search;
       }
       
       if (filters.status) {
-        params.append('status', filters.status);
+        params.status = filters.status;
       }
       
       if (filters.dateRange.from) {
-        params.append('fromDate', filters.dateRange.from);
+        params.fromDate = filters.dateRange.from;
       }
       
       if (filters.dateRange.to) {
-        params.append('toDate', filters.dateRange.to);
+        params.toDate = filters.dateRange.to;
       }
       
       // Call export API with filters
-      const response = await axios.get('/api/history/export/excel', { 
+      const response = await apiService.get('api/history/export/excel', { 
         params,
         responseType: 'blob' 
       });
@@ -172,26 +263,26 @@ function HistoryPage() {
   const handleExportPDF = async () => {
     try {
       // Create params with all current filters for the export
-      const params = new URLSearchParams();
+      const params = {};
       
       if (filters.search) {
-        params.append('search', filters.search);
+        params.search = filters.search;
       }
       
       if (filters.status) {
-        params.append('status', filters.status);
+        params.status = filters.status;
       }
       
       if (filters.dateRange.from) {
-        params.append('fromDate', filters.dateRange.from);
+        params.fromDate = filters.dateRange.from;
       }
       
       if (filters.dateRange.to) {
-        params.append('toDate', filters.dateRange.to);
+        params.toDate = filters.dateRange.to;
       }
       
       // Call export API with filters
-      const response = await axios.get('/api/history/export/pdf', { 
+      const response = await apiService.get('api/history/export/pdf', { 
         params,
         responseType: 'blob' 
       });
@@ -223,7 +314,13 @@ function HistoryPage() {
       <div className="top-bar">
         <div className="search-bar">
           <i className="fas fa-search"></i>
-          <input type="text" placeholder="Tìm kiếm..." />
+          <input 
+            type="text" 
+            name="search"
+            placeholder="Tìm kiếm theo biển số xe..." 
+            value={filters.search}
+            onChange={handleFilterChange}
+          />
         </div>
         <div className="user-profile">
           <i className="fas fa-bell"></i>
@@ -232,8 +329,19 @@ function HistoryPage() {
         </div>
       </div>
 
-      <h1>Lịch sử đỗ xe</h1>
-      <p style={{ marginBottom: '20px', color: 'var(--gray)' }}>Xem lịch sử ra vào của các phương tiện trong hệ thống</p>
+      <h1>Lịch sử ra vào</h1>
+      <p className="section-description">Xem lịch sử các phương tiện ra vào bãi đỗ xe</p>
+
+      {/* Auto-fetch control */}
+      <AutoFetchControl />
+      
+      {/* Last updated indicator */}
+      {lastFetchTime && (
+        <div className="last-updated">
+          <small>Cập nhật lần cuối: {lastFetchTime.toLocaleTimeString('vi-VN')}</small>
+          {globalEnabled && <span className="fetch-indicator"></span>}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="card">
@@ -274,6 +382,13 @@ function HistoryPage() {
               value={filters.dateRange.to} 
               onChange={handleFilterChange}
             />
+          </div>
+          <div className="filter-group">
+            <label>Sắp xếp:</label>
+            <select value={filters.sortOrder} onChange={handleSortOrderChange}>
+              <option value="newest">Mới nhất đến cũ nhất</option>
+              <option value="oldest">Cũ nhất đến mới nhất</option>
+            </select>
           </div>
           <button className="btn-reset" onClick={handleResetFilters}>
             <i className="fas fa-redo"></i> Đặt lại
@@ -335,39 +450,13 @@ function HistoryPage() {
 
             {/* Pagination */}
             {pagination.totalRecords > 0 && (
-              <div className="pagination">
-                <button 
-                  className="pagination-btn" 
-                  disabled={pagination.currentPage === 1}
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                >
-                  <i className="fas fa-chevron-left"></i>
-                </button>
-                
-                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    className={`pagination-btn ${pagination.currentPage === page ? 'active' : ''}`}
-                    onClick={() => handlePageChange(page)}
-                  >
-                    {page}
-                  </button>
-                ))}
-                
-                <button 
-                  className="pagination-btn" 
-                  disabled={pagination.currentPage === pagination.totalPages}
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                >
-                  <i className="fas fa-chevron-right"></i>
-                </button>
-                
-                <span className="pagination-info">
-                  Hiển thị {((pagination.currentPage - 1) * pagination.recordsPerPage) + 1}-
-                  {Math.min(pagination.currentPage * pagination.recordsPerPage, pagination.totalRecords)} 
-                  của {pagination.totalRecords} bản ghi
-                </span>
-              </div>
+              <TablePagination
+                totalRecords={pagination.totalRecords}
+                currentPage={pagination.currentPage}
+                recordsPerPage={pagination.recordsPerPage}
+                onPageChange={handlePageChange}
+                onRecordsPerPageChange={handleRecordsPerPageChange}
+              />
             )}
           </>
         )}

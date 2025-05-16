@@ -1,14 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Footer from '../components/Footer';
 import './styles/style-payment.css';
-import axios from 'axios';
-import { API_URL } from '../services/api'; // Adjust the import path as necessary
+import { API_URL, apiService } from '../services/api';
+import TablePagination from '../components/TablePagination';
+import useAutoFetch from '../hooks/useAutoFetch';
+import { useAutoFetchSettings } from '../context/AutoFetchContext';
+import AutoFetchControl from '../components/AutoFetchControl';
 
 function Payment() {
   // State for payments
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastFetchTime, setLastFetchTime] = useState(null);
+
+  // Get auto-fetch settings
+  const { interval, globalEnabled } = useAutoFetchSettings();
 
   // State for search term
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,24 +52,92 @@ function Payment() {
   const revenueChartInstance = useRef(null);
   const paymentMethodChartInstance = useRef(null);
 
-  // Fetch payment data from API
-  useEffect(() => {
-    const fetchPayments = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(`${API_URL}/api_users/lichsuthanhtoan`);
-        console.log('Payment data:', response.data); // Debugging line
-        setPayments(response.data);
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to fetch payment data');
-        setLoading(false);
-        console.error('Error fetching payment data:', err);
-      }
-    };
+  // Add pagination state
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    recordsPerPage: 10,
+    totalRecords: 0
+  });
 
-    fetchPayments();
-  }, []);
+  // Add sort order state
+  const [sortOrder, setSortOrder] = useState('newest'); // Default: newest to oldest
+
+  // Fetch payment data from API
+  const fetchPayments = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // If the API supports pagination, use these params
+      const params = {
+        page: pagination.currentPage,
+        limit: pagination.recordsPerPage
+      };
+      
+      // Make the API call
+      const response = await apiService.get('api_users/lichsuthanhtoan/', { params });
+      
+      // Check if the response data is an array or has pagination info
+      let records = [];
+      let totalCount = 0;
+      
+      if (Array.isArray(response.data)) {
+        // API returns all records, store them all for filtering
+        const allRecords = response.data;
+        totalCount = allRecords.length;
+        records = allRecords;
+      } else if (response.data.records) {
+        // API already returns paginated data
+        records = response.data.records;
+        totalCount = response.data.totalRecords || response.data.records.length;
+      } else {
+        // Fallback if the structure is unexpected
+        records = response.data;
+        totalCount = response.data.length;
+      }
+      
+      // Update state with the data
+      setPayments(records);
+      
+      // Update pagination state
+      setPagination(prev => ({
+        ...prev,
+        totalRecords: totalCount
+      }));
+      
+      setLastFetchTime(new Date());
+      return records;
+    } catch (err) {
+      console.error('Error fetching payments:', err);
+      setError(err.message || 'An error occurred while loading payment data');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Use auto-fetch hook for payments
+  const {
+    data: autoFetchedPayments,
+    isLoading: isLoadingPayments,
+    error: autoFetchError,
+    manualFetch
+  } = useAutoFetch(
+    fetchPayments,
+    interval,
+    globalEnabled,
+    [pagination.currentPage, pagination.recordsPerPage]
+  );
+  
+  // Update payments state when auto-fetched data changes
+  useEffect(() => {
+    if (autoFetchedPayments && !isLoadingPayments) {
+      setPayments(autoFetchedPayments);
+    }
+    if (autoFetchError) {
+      setError(autoFetchError.message || 'Failed to fetch payment data');
+    }
+  }, [autoFetchedPayments, isLoadingPayments, autoFetchError]);
 
   // Process revenue data from API
   useEffect(() => {
@@ -89,39 +164,43 @@ function Payment() {
   }, [payments]);
 
   // Filter payments based on search and filters
-  const filteredPayments = payments.filter(payment => {
-    // Search filter - check if MSSV or ma_thanh_toan includes the search term
-    const matchesSearch = 
-      (payment.sinh_vien?.ma_sv?.toString() || '').includes(searchTerm.toLowerCase()) ||
-      (payment.ma_thanh_toan?.toString() || '').includes(searchTerm.toLowerCase());
+  const filteredPayments = useMemo(() => {
+    let result = [...payments];
     
-    // Date filter
-    let matchesDate = true;
-    if (payment.thoi_gian) {
-      const paymentDate = new Date(payment.thoi_gian);
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      
-      if (dateFilter === 'today') {
-        matchesDate = paymentDate.toDateString() === today.toDateString();
-      } else if (dateFilter === 'yesterday') {
-        matchesDate = paymentDate.toDateString() === yesterday.toDateString();
-      } else if (dateFilter === 'thisWeek') {
-        const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - today.getDay());
-        matchesDate = paymentDate >= weekStart;
-      }
+    // Apply filters
+    if (searchTerm) {
+      result = result.filter(payment => 
+        payment.ma_thanh_toan?.toString().includes(searchTerm) ||
+        payment.sinh_vien?.ma_sv?.toString().includes(searchTerm) ||
+        payment.sinh_vien?.ho_ten?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
     
-    // Status filter (if we add status later)
-    const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
+    // Apply date filter
+    if (dateFilter) {
+      result = result.filter(payment => {
+        const paymentDate = new Date(payment.thoi_gian).toISOString().split('T')[0];
+        return paymentDate === dateFilter;
+      });
+    }
     
-    // Method filter (if we add method later)
-    const matchesMethod = methodFilter === 'all' || payment.method === methodFilter;
-        
-    return matchesSearch && matchesDate && matchesStatus && matchesMethod;
-  });
+    // Apply sorting
+    if (sortOrder === 'newest') {
+      result.sort((a, b) => new Date(b.thoi_gian) - new Date(a.thoi_gian));
+    } else if (sortOrder === 'oldest') {
+      result.sort((a, b) => new Date(a.thoi_gian) - new Date(b.thoi_gian));
+    }
+    
+    // Update total records count for pagination
+    setPagination(prev => ({
+      ...prev,
+      totalRecords: result.length
+    }));
+    
+    // Apply pagination
+    const startIndex = (pagination.currentPage - 1) * pagination.recordsPerPage;
+    return result.slice(startIndex, startIndex + pagination.recordsPerPage);
+  }, [payments, searchTerm, dateFilter, pagination.currentPage, pagination.recordsPerPage, sortOrder]);
 
   // Calculate statistics
   const totalRevenue = filteredPayments.reduce((sum, payment) => sum + payment.so_tien, 0);
@@ -172,7 +251,7 @@ function Payment() {
     
     try {
       // Send new payment data to API
-      const response = await axios.post(`${API_URL}/api/payments`, invoiceDetails);
+      const response = await apiService.post('api/payments', invoiceDetails);
       
       // Add new payment to the list
       setPayments([response.data, ...payments]);
@@ -353,6 +432,32 @@ function Payment() {
     };
   }, [payments, revenueData]); // Re-run if payments or revenueData change
 
+  // Add handlers for pagination
+  const handlePageChange = (page) => {
+    setPagination(prev => ({
+      ...prev,
+      currentPage: page
+    }));
+  };
+  
+  const handleRecordsPerPageChange = (recordsPerPage) => {
+    setPagination(prev => ({
+      ...prev,
+      recordsPerPage,
+      currentPage: 1 // Reset to first page when changing records per page
+    }));
+  };
+
+  // Add handler for sort order change
+  const handleSortOrderChange = (e) => {
+    setSortOrder(e.target.value);
+    // Reset to first page when sort order changes
+    setPagination(prev => ({
+      ...prev,
+      currentPage: 1
+    }));
+  };
+
   return (
     <>
       {/* Main Content */}
@@ -363,7 +468,7 @@ function Payment() {
             <i className="fas fa-search"></i>
             <input 
               type="text" 
-              placeholder="Tìm kiếm giao dịch..." 
+              placeholder="Tìm kiếm thanh toán..." 
               value={searchTerm}
               onChange={handleSearchChange}
             />
@@ -375,8 +480,19 @@ function Payment() {
           </div>
         </div>
 
-        <h1>Quản lý thanh toán</h1>
-        <p className="sub-heading">Quản lý và theo dõi tất cả các giao dịch thanh toán trong hệ thống</p>
+        <h1>Thanh toán</h1>
+        <p className="page-description">Quản lý giao dịch và thanh toán trong hệ thống</p>
+        
+        {/* Auto-fetch control */}
+        <AutoFetchControl />
+        
+        {/* Last updated indicator */}
+        {lastFetchTime && (
+          <div className="last-updated">
+            <small>Cập nhật lần cuối: {lastFetchTime.toLocaleTimeString('vi-VN')}</small>
+            {globalEnabled && <span className="fetch-indicator"></span>}
+          </div>
+        )}
         
         {/* Payment Statistics */}
         <div className="dashboard-overview">
@@ -426,17 +542,26 @@ function Payment() {
                 <option value="thisWeek">Tuần này</option>
               </select>
             </div>
+            <div className="filter-group">
+              <label>Sắp xếp</label>
+              <select
+                value={sortOrder}
+                onChange={handleSortOrderChange}
+              >
+                <option value="newest">Mới nhất đến cũ nhất</option>
+                <option value="oldest">Cũ nhất đến mới nhất</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* Payments Table */}
+        {/* Payment History */}
         <div className="card">
-          <h2 className="card-title">Danh sách giao dịch</h2>
-          
-          <div className="table-responsive">
+          <h2>Lịch sử nạp tiền</h2>
+          <div className="payment-history">
             {loading ? (
-              <div className="table-loading-state">
-                <div className="loading-spinner"></div>
+              <div className="loading">
+                <i className="fas fa-circle-notch fa-spin"></i>
                 <p>Đang tải dữ liệu thanh toán...</p>
               </div>
             ) : filteredPayments.length === 0 ? (
@@ -445,40 +570,52 @@ function Payment() {
                 <p>Không tìm thấy giao dịch nào phù hợp với bộ lọc</p>
               </div>
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Mã Nạp Tiền</th>
-                    <th>MSSV</th>
-                    <th>Họ tên</th>
-                    <th>Thời gian</th>
-                    <th>Số tiền</th>
-                    <th>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPayments.map(payment => (
-                    <tr key={payment.ma_thanh_toan}>
-                      <td>{payment.ma_thanh_toan}</td>
-                      <td>{payment.sinh_vien?.ma_sv}</td>
-                      <td>{payment.sinh_vien?.ho_ten}</td>
-                      <td>{formatDate(payment.thoi_gian)}</td>
-                      <td>{payment.so_tien?.toLocaleString('vi-VN')} đ</td>
-                      <td>
-                        <div className="action-buttons">
-                          <button 
-                            onClick={() => handleViewReceipt(payment)}
-                            title="Xem hóa đơn"
-                            className="btn-primary action-btn"
-                          >
-                            <i className="fas fa-file-invoice"></i>
-                          </button>
-                        </div>
-                      </td>
+              <>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã Nạp Tiền</th>
+                      <th>MSSV</th>
+                      <th>Họ tên</th>
+                      <th>Thời gian</th>
+                      <th>Số tiền</th>
+                      <th>Thao tác</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredPayments.map(payment => (
+                      <tr key={payment.ma_thanh_toan}>
+                        <td>{payment.ma_thanh_toan}</td>
+                        <td>{payment.sinh_vien?.ma_sv}</td>
+                        <td>{payment.sinh_vien?.ho_ten}</td>
+                        <td>{formatDate(payment.thoi_gian)}</td>
+                        <td>{payment.so_tien?.toLocaleString('vi-VN')} đ</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button 
+                              onClick={() => handleViewReceipt(payment)}
+                              title="Xem hóa đơn"
+                              className="btn-primary action-btn"
+                            >
+                              <i className="fas fa-file-invoice"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                
+                {pagination.totalRecords > 0 && (
+                  <TablePagination
+                    totalRecords={pagination.totalRecords}
+                    currentPage={pagination.currentPage}
+                    recordsPerPage={pagination.recordsPerPage}
+                    onPageChange={handlePageChange}
+                    onRecordsPerPageChange={handleRecordsPerPageChange}
+                  />
+                )}
+              </>
             )}
           </div>
         </div>
@@ -513,26 +650,28 @@ function Payment() {
           <div className="card">
             <h2 className="card-title">Giao dịch gần đây nhất</h2>
             {payments.length > 0 ? (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Mã thanh toán</th>
-                    <th>MSSV</th>
-                    <th>Thời gian</th>
-                    <th>Số tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.slice(0, 5).map(payment => (
-                    <tr key={`recent-${payment.ma_thanh_toan}`}>
-                      <td>{payment.ma_thanh_toan}</td>
-                      <td>{payment.sinh_vien?.ma_sv}</td>
-                      <td>{formatDate(payment.thoi_gian)}</td>
-                      <td>{payment.so_tien?.toLocaleString('vi-VN')} đ</td>
+              <>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã thanh toán</th>
+                      <th>MSSV</th>
+                      <th>Thời gian</th>
+                      <th>Số tiền</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {payments.slice(0, 5).map(payment => (
+                      <tr key={`recent-${payment.ma_thanh_toan}`}>
+                        <td>{payment.ma_thanh_toan}</td>
+                        <td>{payment.sinh_vien?.ma_sv}</td>
+                        <td>{formatDate(payment.thoi_gian)}</td>
+                        <td>{payment.so_tien?.toLocaleString('vi-VN')} đ</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
             ) : (
               <div className="no-data">
                 <p>Chưa có giao dịch nào</p>

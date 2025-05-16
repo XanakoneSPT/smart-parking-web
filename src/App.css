@@ -373,3 +373,173 @@ footer {
         padding: 15px; /* Less padding on small screens */
     }
 }
+
+/* TablePagination Component Styles */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  margin: 0 4px;
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-color);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover {
+  background-color: var(--light-bg);
+}
+
+.pagination-btn.active {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  gap: 20px;
+}
+
+.records-per-page {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.records-per-page select {
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--white);
+}
+
+.pagination-info {
+  color: var(--gray);
+  font-size: 14px;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+  .pagination {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .pagination-controls {
+    margin-left: 0;
+    margin-top: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Table Controls Styles */
+.table-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 15px;
+  gap: 15px;
+}
+
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-control label {
+  color: var(--gray);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.sort-control select {
+  padding: 6px 12px;
+  border: 1px solid var(--gray-light);
+  border-radius: 4px;
+  background-color: var(--white);
+  font-size: 14px;
+  color: var(--dark);
+}
+
+/* Add global styles for the last-updated indicator */
+.last-updated {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  color: var(--gray);
+  font-size: 0.85rem;
+}
+
+.fetch-indicator {
+  width: 10px;
+  height: 10px;
+  background-color: #4CAF50;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: 8px;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Add global styles for error and loading messages */
+.error-message {
+  padding: 10px 15px;
+  background-color: #f8d7da;
+  color: #842029;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.loading-indicator {
+  padding: 10px 15px;
+  background-color: #e2f3f5;
+  color: #0c5460;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+/* Add standard page description styles */
+.page-description {
+  margin-bottom: 20px;
+  color: var(--gray);
+}

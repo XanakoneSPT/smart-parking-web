@@ -48,6 +48,34 @@ thead th {
   font-weight: bold;
 }
 
+/* No data message */
+.no-data {
+  text-align: center;
+  padding: 20px;
+  color: var(--gray);
+  font-style: italic;
+}
+
+/* Loading indicator */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 18px;
+  color: var(--gray);
+}
+
+/* Error message */
+.error-message {
+  background-color: rgba(var(--danger-rgb), 0.1);
+  border-left: 4px solid var(--danger);
+  color: var(--danger);
+  padding: 12px 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
 /* Status indicators */
 .status {
   display: inline-block;
@@ -135,24 +163,31 @@ thead th {
 .icon-danger { background-color: var(--danger); }
 .icon-secondary { background-color: var(--secondary); }
 
-/* Progress bars */
-.progress-bar {
-  width: 100%;
-  height: 10px;
-  background-color: #f0f0f0;
-  border-radius: 5px;
-  overflow: hidden;
+/* Table controls */
+.table-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
 }
 
-.progress {
-  height: 100%;
-  border-radius: 5px;
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-/* Progress percentages */
-.progress-low { width: 33%; background-color: var(--danger); }
-.progress-medium { width: 66%; background-color: var(--warning); }
-.progress-high { width: 100%; background-color: var(--success); }
+.sort-control label {
+  font-size: 14px;
+  color: var(--gray);
+}
+
+.sort-control select {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
 
 /* Layout containers */
 .content {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { API_URL } from '../services/api';
+import { API_URL, apiService } from '../services/api';
 import './styles/style-login.css';
 
 function Login() {
@@ -53,7 +52,7 @@ function Login() {
       }
       
       // Make login request
-      const response = await axios.post(`${API_URL}api_users/login/`, {
+      const response = await apiService.post('api_users/login/', {
         username: credentials.username,
         password: credentials.password
       });
@@ -70,9 +69,6 @@ function Login() {
         sessionStorage.setItem('auth_token', token);
         sessionStorage.setItem('user_info', JSON.stringify(user));
       }
-      
-      // Set authorization header for future requests
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
       // Redirect based on role
       if (user.role === 'Admin') {

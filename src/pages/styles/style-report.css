@@ -226,44 +226,31 @@
     font-size: 16px;
   }
   
-  /* Payment Analysis */
-  .payment-analysis {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 30px;
+  /* Table Controls */
+  .table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
   }
   
-  .payment-stats {
-    padding: 10px;
+  .sort-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
   
-  .payment-stat {
-    margin-bottom: 20px;
-  }
-  
-  .payment-stat h3 {
-    font-size: 16px;
-    margin: 0 0 10px 0;
-    color: #333;
-  }
-  
-  .payment-stat p {
+  .sort-control label {
     font-size: 14px;
-    color: #777;
-    margin: 5px 0 0 0;
+    color: #555;
   }
   
-  .progress-bar {
-    background-color: #f0f0f0;
+  .sort-control select {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
     border-radius: 4px;
-    height: 8px;
-    overflow: hidden;
-    margin-bottom: 5px;
-  }
-  
-  .progress-bar .progress {
-    height: 100%;
-    border-radius: 4px;
+    font-size: 14px;
+    background-color: #fff;
   }
   
   /* Table Styles */
@@ -287,6 +274,90 @@
   
   table tr:hover {
     background-color: #f5f8ff;
+  }
+  
+  /* Error and Loading */
+  .error-message {
+    background-color: #ffe6e6;
+    border-left: 4px solid var(--danger);
+    padding: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+  }
+  
+  .error-message i {
+    color: var(--danger);
+    font-size: 20px;
+    margin-right: 15px;
+  }
+  
+  .error-message p {
+    margin: 0 15px 0 0;
+    flex-grow: 1;
+    color: #555;
+  }
+  
+  .error-message button {
+    background-color: var(--danger);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top: 4px solid var(--primary);
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .loading-container p {
+    color: #666;
+    margin: 0;
+  }
+  
+  /* No Data Message */
+  .no-data-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f9f9f9;
+    padding: 30px;
+    border-radius: 4px;
+    margin: 20px 0;
+  }
+  
+  .no-data-message i {
+    font-size: 24px;
+    color: #999;
+    margin-right: 15px;
+  }
+  
+  .no-data-message p {
+    margin: 0;
+    color: #666;
+    font-size: 16px;
   }
   
   /* Pagination */
@@ -332,8 +403,10 @@
       grid-template-columns: 1fr;
     }
     
-    .payment-analysis {
-      grid-template-columns: 1fr;
+    .table-controls {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
     }
     
     .report-filters {

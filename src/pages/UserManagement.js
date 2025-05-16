@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './styles/style-user.css';
 import Footer from '../components/Footer';
-import axios from 'axios';
-import { API_URL } from '../services/api';
+import { apiService, API_URL } from '../services/api';
+import TablePagination from '../components/TablePagination';
+import useAutoFetch from '../hooks/useAutoFetch';
+import { useAutoFetchSettings } from '../context/AutoFetchContext';
+import AutoFetchControl from '../components/AutoFetchControl';
 
 function UserManagement() {
   // State
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -20,6 +23,19 @@ function UserManagement() {
     total_money: 100000,
     permissions: ['dashboard', 'reports']
   });
+  // Add pagination state
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    recordsPerPage: 10,
+    totalRecords: 0
+  });
+  // Add sort order state
+  const [sortOrder, setSortOrder] = useState('newest'); // Default: newest to oldest
+  // Add last fetch time state
+  const [lastFetchTime, setLastFetchTime] = useState(null);
+
+  // Get auto-fetch settings
+  const { interval, globalEnabled } = useAutoFetchSettings();
 
   // Log API URL for debugging
   useEffect(() => {
@@ -33,32 +49,98 @@ function UserManagement() {
     
     try {
       console.log('Fetching users from:', `${API_URL}api_users/sinhvien/`);
-      const response = await axios.get(`${API_URL}api_users/sinhvien/`);
+      const response = await apiService.get('api_users/sinhvien/');
       console.log('Users data received:', response.data);
+      
+      // Store all users for filtering
       setUsers(response.data);
+      setLastFetchTime(new Date());
+      
+      // The filteredUsers useMemo will handle pagination
+      return response.data;
     } catch (err) {
       console.error('Error fetching users:', err);
       setError('Failed to fetch users data. Please try again later.');
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch users on component mount
+  // Use auto-fetch hook for users
+  const {
+    data: autoFetchedUsers,
+    isLoading: isLoadingUsers,
+    error: autoFetchError,
+    manualFetch
+  } = useAutoFetch(fetchUsers, interval, globalEnabled);
+  
+  // Update users state when auto-fetched data changes
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (autoFetchedUsers && !isLoadingUsers) {
+      setUsers(autoFetchedUsers);
+    }
+    if (autoFetchError) {
+      setError(autoFetchError.message || 'Failed to fetch users data');
+    }
+  }, [autoFetchedUsers, isLoadingUsers, autoFetchError]);
     
-  // Filter users based on search term
-  const filteredUsers = users.filter(user => 
-    user.ho_ten?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.id_rfid?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.ma_sv?.toString().includes(searchTerm.toLowerCase())
-  );
+  // Calculate filtered users with pagination
+  const filteredUsers = useMemo(() => {
+    let filtered = users.filter(user => {
+      // Convert all values to strings before using toLowerCase
+      const maSv = String(user.ma_sv || '').toLowerCase();
+      const hoTen = String(user.ho_ten || '').toLowerCase();
+      const idRfid = String(user.id_rfid || '').toLowerCase();
+      const query = searchQuery.toLowerCase();
+      
+      return maSv.includes(query) || hoTen.includes(query) || idRfid.includes(query);
+    });
+    
+    // Apply sorting
+    if (sortOrder === 'newest') {
+      // Sort by most recently added (assuming higher ID means more recent)
+      filtered = [...filtered].sort((a, b) => 
+        String(b.ma_sv || '').localeCompare(String(a.ma_sv || ''))
+      );
+    } else if (sortOrder === 'oldest') {
+      // Sort by oldest first
+      filtered = [...filtered].sort((a, b) => 
+        String(a.ma_sv || '').localeCompare(String(b.ma_sv || ''))
+      );
+    }
+    
+    // Update total records count
+    setPagination(prev => ({
+      ...prev,
+      totalRecords: filtered.length
+    }));
+    
+    // Apply pagination
+    const startIndex = (pagination.currentPage - 1) * pagination.recordsPerPage;
+    return filtered.slice(startIndex, startIndex + pagination.recordsPerPage);
+  }, [users, searchQuery, pagination.currentPage, pagination.recordsPerPage, sortOrder]);
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setPagination(prev => ({
+      ...prev,
+      currentPage: page
+    }));
+  };
+
+  // Handle records per page change
+  const handleRecordsPerPageChange = (recordsPerPage) => {
+    setPagination(prev => ({
+      ...prev,
+      recordsPerPage,
+      currentPage: 1 // Reset to first page when changing records per page
+    }));
+  };
 
   // Event Handlers
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
+    setSearchQuery(e.target.value);
   };
 
   const handleAddUserClick = () => {
@@ -93,8 +175,8 @@ function UserManagement() {
       setError(null);
       
       try {
-        await axios.delete(`${API_URL}api_users/sinhvien/${userId}/`);
-        fetchUsers(); // Refresh the list after deletion
+        await apiService.delete(`api_users/sinhvien/${userId}/`);
+        manualFetch(); // Use manual fetch from useAutoFetch hook
       } catch (err) {
         console.error('Error deleting user:', err);
         setError('Failed to delete user. Please try again.');
@@ -151,17 +233,10 @@ function UserManagement() {
       
       console.log('Sending direct API request to create user:', apiData);
       
-      const response = await axios({
-        method: 'post',
-        url: `${API_URL}api_users/sinhvien/`,
-        data: apiData,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiService.post('api_users/sinhvien/', apiData);
       
       console.log('User created successfully:', response.data);
-      fetchUsers();
+      manualFetch();
       setIsModalOpen(false);
       return true;
     } catch (err) {
@@ -213,7 +288,7 @@ function UserManagement() {
         };
         
         console.log('Updating user with data:', apiData);
-        const response = await axios.put(`${API_URL}api_users/sinhvien/${selectedUser.ma_sv}/`, apiData);
+        const response = await apiService.put(`api_users/sinhvien/${selectedUser.ma_sv}/`, apiData);
         console.log('Update response:', response.data);
       } else {
         // Try the direct API call approach
@@ -221,7 +296,7 @@ function UserManagement() {
       }
       
       // Refresh user list and close modal
-      fetchUsers();
+      manualFetch();
       setIsModalOpen(false);
       return true;
     } catch (err) {
@@ -250,11 +325,12 @@ function UserManagement() {
       const user = users.find(u => u.ma_sv === userId);
       const newMoney = user.so_tien_hien_co === 'inactive' ? 100000 : 'inactive';
       
-      await axios.patch(`${API_URL}api_users/sinhvien/${userId}/money/`, { 
+      // Note: the server might need to support PATCH, otherwise we might need to use PUT
+      await apiService.post(`api_users/sinhvien/${userId}/money/`, { 
         so_tien_hien_co: newMoney 
       });
       
-      fetchUsers(); // Refresh user data
+      manualFetch(); // Refresh user data
     } catch (err) {
       console.error('Error updating user money:', err);
       setError('Failed to update user balance. Please try again.');
@@ -271,7 +347,17 @@ function UserManagement() {
     }).format(value);
   };
 
-  if (loading) return <div className="loading">Đang tải dữ liệu...</div>;
+  // Add handler for sort order change
+  const handleSortOrderChange = (e) => {
+    setSortOrder(e.target.value);
+    // Reset to first page when changing sort order
+    setPagination(prev => ({
+      ...prev,
+      currentPage: 1
+    }));
+  };
+
+  if (isLoadingUsers) return <div className="loading">Đang tải dữ liệu...</div>;
 
   return (
     <div className="content">
@@ -285,7 +371,7 @@ function UserManagement() {
           <input 
             type="text" 
             placeholder="Tìm kiếm người dùng..." 
-            value={searchTerm}
+            value={searchQuery}
             onChange={handleSearchChange}
           />
         </div>
@@ -298,6 +384,17 @@ function UserManagement() {
 
       <h1>Quản lý người dùng</h1>
       <p>Quản lý người dùng và phân quyền trong hệ thống</p>
+      
+      {/* Auto-fetch control */}
+      <AutoFetchControl />
+      
+      {/* Last updated indicator */}
+      {lastFetchTime && (
+        <div className="last-updated">
+          <small>Cập nhật lần cuối: {lastFetchTime.toLocaleTimeString('vi-VN')}</small>
+          {globalEnabled && <span className="fetch-indicator"></span>}
+        </div>
+      )}
       
       {/* User Statistics */}
       <div className="dashboard-overview">
@@ -352,6 +449,16 @@ function UserManagement() {
           </button>
         </div>
         
+        <div className="table-controls">
+          <div className="sort-control">
+            <label>Sắp xếp:</label>
+            <select value={sortOrder} onChange={handleSortOrderChange}>
+              <option value="newest">Mới nhất đến cũ nhất</option>
+              <option value="oldest">Cũ nhất đến mới nhất</option>
+            </select>
+          </div>
+        </div>
+        
         <div className="table-responsive">
           <table>
             <thead>
@@ -392,6 +499,17 @@ function UserManagement() {
               )}
             </tbody>
           </table>
+          
+          {/* Add pagination component */}
+          {pagination.totalRecords > 0 && (
+            <TablePagination
+              totalRecords={pagination.totalRecords}
+              currentPage={pagination.currentPage}
+              recordsPerPage={pagination.recordsPerPage}
+              onPageChange={handlePageChange}
+              onRecordsPerPageChange={handleRecordsPerPageChange}
+            />
+          )}
         </div>
       </div>
       

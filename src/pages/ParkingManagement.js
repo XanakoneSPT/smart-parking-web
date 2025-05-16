@@ -258,45 +258,6 @@ function ParkingManagement() {
 
       {/* License Plate Recognition and Manual Entry Section */}
       <div className="tables-container">
-        {/* License Plate Recognition Records */}
-        {/* <div className="card">
-          <h2>Nhận diện biển số xe</h2>
-          <div className="plate-records">
-            <table>
-              <thead>
-                <tr>
-                  <th>Thời gian</th>
-                  <th>Biển số</th>
-                  <th>Trạng thái</th>
-                  <th>Vị trí</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {plateRecords.map(record => (
-                  <tr key={record.id}>
-                    <td>{record.time}</td>
-                    <td>{record.plateNumber}</td>
-                    <td>
-                      <span className={`status ${record.status === 'check-in' ? 'available' : 'occupied'}`}>
-                        {record.status === 'check-in' ? 'Vào' : 'Ra'}
-                      </span>
-                    </td>
-                    <td>{record.spot}</td>
-                    <td>
-                      <button className="action-button">
-                        <i className="fas fa-info-circle"></i>
-                      </button>
-                      <button className="action-button">
-                        <i className="fas fa-edit"></i>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div> */}
 
         {/* Manual Entry Form */}
         <div className="card">
@@ -356,37 +317,6 @@ function ParkingManagement() {
           </form>
         </div>
       </div>
-
-      {/* Alerts Section */}
-      {/* <div className="tables-container">
-        <div className="card">
-          <div className="card-header">
-            <h2>Cảnh báo và thông báo</h2>
-            <button className="refresh-button">
-              <i className="fas fa-sync-alt"></i>
-            </button>
-          </div>
-          <div className="alerts-container">
-            {alerts.map(alert => (
-              <div key={alert.id} className={`alert-item ${alert.type}`}>
-                <div className="alert-icon">
-                  {alert.type === 'warning' && <i className="fas fa-exclamation-triangle"></i>}
-                  {alert.type === 'error' && <i className="fas fa-times-circle"></i>}
-                  {alert.type === 'info' && <i className="fas fa-info-circle"></i>}
-                </div>
-                <div className="alert-content">
-                  <div className="alert-message">{alert.message}</div>
-                  <div className="alert-time">{alert.time}</div>
-                </div>
-                <button className="alert-dismiss">
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div> */}
-
       <Footer />
     </div>
   );
