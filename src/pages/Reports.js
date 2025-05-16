@@ -573,20 +573,11 @@ function Reports() {
     <>
       {/* Main Content */}
       <div className="content">
-        {/* Top Bar */}
+        {/* Top Bar - removing search bar and user profile */}
         <div className="top-bar">
-          <div className="search-bar">
-            <i className="fas fa-search"></i>
-            <input type="text" placeholder="Tìm kiếm báo cáo..." />
-          </div>
-          <div className="user-profile">
-            <i className="fas fa-bell"></i>
-            <img src="/api/placeholder/40/40" alt="Admin" />
-            <span>Admin User</span>
-          </div>
+          <h1>Báo cáo thống kê</h1>
         </div>
 
-        <h1>Báo cáo thống kê</h1>
         <p className="page-description">Phân tích dữ liệu và tạo các báo cáo thống kê</p>
         
         {/* Auto-fetch control */}

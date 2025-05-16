@@ -342,25 +342,11 @@ function UserManagement() {
       {/* Error message */}
       {error && <div className="error-message">{error}</div>}
       
-      {/* Top Bar */}
+      {/* Top Bar - removing search bar and user profile */}
       <div className="top-bar">
-        <div className="search-bar">
-          <i className="fas fa-search"></i>
-          <input 
-            type="text" 
-            placeholder="Tìm kiếm người dùng..." 
-            value={searchQuery}
-            onChange={handleSearchChange}
-          />
-        </div>
-        <div className="user-profile">
-          <i className="fas fa-bell"></i>
-          <img src="/api/placeholder/40/40" alt="Admin" />
-          <span>Admin User</span>
-        </div>
+        <h1>Quản lý người dùng</h1>
       </div>
 
-      <h1>Quản lý người dùng</h1>
       <p>Quản lý người dùng và phân quyền trong hệ thống</p>
       
       {/* Auto-fetch control */}

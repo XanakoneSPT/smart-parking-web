@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom'; // Use Link for routing
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
 function Navbar() {
-  const [activeItem, setActiveItem] = useState('Trang chủ'); // Track active menu item
+  const [activeItem, setActiveItem] = useState('Trang chủ');
+  const { logout, currentUser } = useAuth();
+  const navigate = useNavigate();
 
   // Function to set active menu item
   const handleClick = (item) => {
     setActiveItem(item);
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   return (
@@ -15,15 +24,8 @@ function Navbar() {
       <div className="sidebar-header">
         <h2><i className="fas fa-parking"></i> <span>Smart Parking</span></h2>
       </div>
+      
       <div className="menu">
-        {/* <Link
-          to="/home"
-          className={`menu-item ${activeItem === 'Trang chủ' ? 'active' : ''}`}
-          onClick={() => handleClick('Trang chủ')}
-        >
-          <i className="fas fa-tachometer-alt"></i>
-          <span>Trang chủ</span>
-        </Link> */}
         <Link
           to="/parking-management"
           className={`menu-item ${activeItem === 'Quản lý bãi đỗ' ? 'active' : ''}`}
@@ -64,14 +66,15 @@ function Navbar() {
           <i className="fas fa-chart-line"></i>
           <span>Báo cáo</span>
         </Link>
-        {/* <Link
-          to="/notifications"
-          className={`menu-item ${activeItem === 'Thông báo' ? 'active' : ''}`}
-          onClick={() => handleClick('Thông báo')}
+        
+        {/* Logout button */}
+        <div 
+          className="menu-item logout"
+          onClick={handleLogout}
         >
-          <i className="fas fa-bell"></i>
-          <span>Thông báo</span>
-        </Link> */}
+          <i className="fas fa-sign-out-alt"></i>
+          <span>Đăng xuất</span>
+        </div>
       </div>
     </div>
   );

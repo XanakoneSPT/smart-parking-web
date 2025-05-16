@@ -310,26 +310,11 @@ function HistoryPage() {
 
   return (
     <div className="content">
-      {/* Top Bar */}
+      {/* Top Bar - removing search bar and user profile */}
       <div className="top-bar">
-        <div className="search-bar">
-          <i className="fas fa-search"></i>
-          <input 
-            type="text" 
-            name="search"
-            placeholder="Tìm kiếm theo biển số xe..." 
-            value={filters.search}
-            onChange={handleFilterChange}
-          />
-        </div>
-        <div className="user-profile">
-          <i className="fas fa-bell"></i>
-          <img src="/api/placeholder/40/40" alt="Admin" />
-          <span>Admin User</span>
-        </div>
+        <h1>Lịch sử ra vào</h1>
       </div>
 
-      <h1>Lịch sử ra vào</h1>
       <p className="section-description">Xem lịch sử các phương tiện ra vào bãi đỗ xe</p>
 
       {/* Auto-fetch control */}

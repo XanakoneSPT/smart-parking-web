@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { API_URL, apiService } from '../services/api';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import './styles/style-login.css';
 
 function Login() {
@@ -9,19 +9,23 @@ function Login() {
     username: '',
     password: ''
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [rememberMe, setRememberMe] = useState(false);
   
+  // Auth context
+  const { login, loading, error, isAuthenticated, currentUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Check if user is already logged in
+  // Get the page user was trying to access before being redirected to login
+  const from = location.state?.from?.pathname || 
+    (currentUser?.role === 'Admin' ? '/admin' : '/parking-management');
+
+  // Redirect if already logged in
   useEffect(() => {
-    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-    if (token) {
-      navigate('/dashboard');
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
     }
-  }, [navigate]);
+  }, [isAuthenticated, navigate, from]);
 
   // Event Handlers
   const handleInputChange = (e) => {
@@ -38,64 +42,19 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
+    
+    // Validate form
+    if (!credentials.username.trim() || !credentials.password.trim()) {
+      return;
+    }
     
     try {
-      // Validate form
-      if (!credentials.username.trim()) {
-        throw new Error('Please enter your username');
-      }
-      
-      if (!credentials.password.trim()) {
-        throw new Error('Please enter your password');
-      }
-      
-      // Make login request
-      const response = await apiService.post('api_users/login/', {
-        username: credentials.username,
-        password: credentials.password
-      });
-      
-      console.log('Login response:', response.data);
-      
-      // Store token and user info
-      const { token, user } = response.data;
-      
-      if (rememberMe) {
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('user_info', JSON.stringify(user));
-      } else {
-        sessionStorage.setItem('auth_token', token);
-        sessionStorage.setItem('user_info', JSON.stringify(user));
-      }
-      
-      // Redirect based on role
-      if (user.role === 'Admin') {
-        navigate('/admin');
-      } else {
-        navigate('/dashboard');
-      }
-      
+      // Use login function from auth context
+      await login(credentials.username, credentials.password, rememberMe);
+      // Navigation is handled by the useEffect hook
     } catch (err) {
-      console.error('Login error:', err);
-      
-      if (err.response) {
-        // Server responded with an error
-        if (err.response.status === 401) {
-          setError('Username or password is incorrect');
-        } else {
-          setError('Login failed: ' + (err.response.data.message || 'Server error'));
-        }
-      } else if (err.request) {
-        // No response received
-        setError('Unable to connect to the server. Please check your network connection.');
-      } else {
-        // Error in request setup
-        setError(err.message);
-      }
-    } finally {
-      setLoading(false);
+      // Error handling is done in the auth context
+      console.error('Login submission error:', err);
     }
   };
 
@@ -107,7 +66,7 @@ function Login() {
             {/* <img src="/api/placeholder/80/80" alt="Logo" /> */}
             <h1>Logo</h1>
           </div>
-          <h1>Student Management System</h1>
+          <h1>Smart Parking System</h1>
           <p>Sign in to continue</p>
         </div>
         
@@ -120,14 +79,14 @@ function Login() {
         
         <form onSubmit={handleSubmit}>
         <div className="form-group">
-            <label htmlFor="username">Username</label>
+            <label htmlFor="username">Admin ID</label>
             <div className="input-with-icon">
               <i className="fas fa-user"></i>
               <input
-                type="username"
+                type="text"
                 id="username"
                 name="username"
-                placeholder="Enter your username"
+                placeholder="Enter your admin ID"
                 value={credentials.username}
                 onChange={handleInputChange}
                 disabled={loading}

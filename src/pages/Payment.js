@@ -462,25 +462,11 @@ function Payment() {
     <>
       {/* Main Content */}
       <div className="content">
-        {/* Top Bar */}
+        {/* Top Bar - removing search bar and user profile */}
         <div className="top-bar">
-          <div className="search-bar">
-            <i className="fas fa-search"></i>
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm thanh toán..." 
-              value={searchTerm}
-              onChange={handleSearchChange}
-            />
-          </div>
-          <div className="user-profile">
-            <i className="fas fa-bell"></i>
-            <img src="/api/placeholder/40/40" alt="Admin" />
-            <span>Admin User</span>
-          </div>
+          <h1>Thanh toán</h1>
         </div>
 
-        <h1>Thanh toán</h1>
         <p className="page-description">Quản lý giao dịch và thanh toán trong hệ thống</p>
         
         {/* Auto-fetch control */}

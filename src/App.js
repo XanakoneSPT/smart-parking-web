@@ -11,38 +11,48 @@ import Payment from './pages/Payment';
 import Reports from './pages/Reports';
 import Login from './pages/Login';
 import { AutoFetchProvider } from './context/AutoFetchContext';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
-    <AutoFetchProvider>
-      <Router>
-        <Routes>
-          {/* Login route without navbar */}
-          <Route path="/login" element={<Login />} />
-          
-          {/* Layout route with navbar for protected routes */}
-          <Route
-            path="/*"
-            element={
-              <div className="App">
-                <Navbar />
-                <div className="main-content">
-                  <Routes>
-                    <Route path="parking-management" element={<ParkingManagement />} />
-                    <Route path="history" element={<VehicleManagement />} />
-                    <Route path="user-management" element={<UserManagement />} />
-                    <Route path="payment" element={<Payment />} />
-                    <Route path="reports" element={<Reports />} />
-                    <Route path="/" element={<Navigate to="/parking-management" />} />
-                    <Route index element={<Navigate to="/parking-management" />} />
-                  </Routes>
-                </div>
-              </div>
-            }
-          />
-        </Routes>
-      </Router>
-    </AutoFetchProvider>
+    <AuthProvider>
+      <AutoFetchProvider>
+        <Router>
+          <Routes>
+            {/* Public route */}
+            <Route path="/login" element={<Login />} />
+            
+            {/* Protected routes with navbar */}
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <div className="App">
+                    <Navbar />
+                    <div className="main-content">
+                      <Routes>
+                        <Route path="parking-management" element={<ParkingManagement />} />
+                        <Route path="history" element={<VehicleManagement />} />
+                        <Route path="user-management" element={
+                          <ProtectedRoute requiredRole="Admin">
+                            <UserManagement />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="payment" element={<Payment />} />
+                        <Route path="reports" element={<Reports />} />
+                        <Route path="/" element={<Navigate to="/parking-management" />} />
+                        <Route path="*" element={<Navigate to="/parking-management" />} />
+                      </Routes>
+                    </div>
+                  </div>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </Router>
+      </AutoFetchProvider>
+    </AuthProvider>
   );
 }
 

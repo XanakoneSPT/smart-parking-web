@@ -175,20 +175,11 @@ function ParkingManagement() {
   // -------
   return (
     <div className="content">
-      {/* Top Bar */}
+      {/* Top Bar - removing search bar and user profile */}
       <div className="top-bar">
-        <div className="search-bar">
-          <i className="fas fa-search"></i>
-          <input type="text" placeholder="Tìm kiếm..." />
-        </div>
-        <div className="user-profile">
-          <i className="fas fa-bell"></i>
-          <img src="/api/placeholder/40/40" alt="Admin" />
-          <span>Admin User</span>
-        </div>
+        <h1>Quản lý bãi đỗ xe</h1>
       </div>
 
-      <h1>Quản lý bãi đỗ xe</h1>
       <p style={{ marginBottom: '20px', color: 'var(--gray)' }}>Giám sát và quản lý hệ thống bãi đỗ xe thông minh</p>
       
       {/* Camera and Parking Map Section */}
