@@ -5,9 +5,6 @@ import { API_URL, apiService } from '../services/api';
 import TablePagination from '../components/TablePagination';
 import html2pdf from 'html2pdf.js';
 import * as XLSX from 'xlsx';
-import useAutoFetch from '../hooks/useAutoFetch';
-import { useAutoFetchSettings } from '../context/AutoFetchContext';
-import AutoFetchControl from '../components/AutoFetchControl';
 import { Chart as ChartJS } from 'chart.js/auto';
 
 function Reports() {
@@ -43,10 +40,6 @@ function Reports() {
   // State for loading and error
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Get auto-fetch settings
-  const { interval, globalEnabled } = useAutoFetchSettings();
-  const [lastFetchTime, setLastFetchTime] = useState(null);
 
   // Function to fetch metrics
   const fetchMetrics = async () => {
@@ -98,7 +91,6 @@ function Reports() {
         data: Object.values(parkingByDate)
       });
 
-      setLastFetchTime(new Date());
       setLoading(false);
     } catch (err) {
       console.error('Error fetching metrics:', err);
@@ -107,13 +99,10 @@ function Reports() {
     }
   };
 
-  // Use auto-fetch hook
-  const { data: autoFetchedData, error: autoFetchError } = useAutoFetch(
-    fetchMetrics,
-    interval,
-    globalEnabled,
-    []
-  );
+  // Initial fetch and periodic refresh
+  useEffect(() => {
+    fetchMetrics();
+  }, [dateRange]);
 
   // Initialize charts
   useEffect(() => {
@@ -337,13 +326,6 @@ function Reports() {
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {lastFetchTime && (
-        <div className="last-updated">
-          <small>Cập nhật lúc: {lastFetchTime.toLocaleTimeString('vi-VN')}</small>
-          {globalEnabled && <span className="fetch-indicator"></span>}
         </div>
       )}
 

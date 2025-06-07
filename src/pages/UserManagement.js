@@ -3,14 +3,12 @@ import './styles/style-user.css';
 import Footer from '../components/Footer';
 import { apiService, API_URL } from '../services/api';
 import TablePagination from '../components/TablePagination';
-import useAutoFetch from '../hooks/useAutoFetch';
-import { useAutoFetchSettings } from '../context/AutoFetchContext';
-import AutoFetchControl from '../components/AutoFetchControl';
 
 function UserManagement() {
   // State
   const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,11 +28,6 @@ function UserManagement() {
   });
   // Add sort order state
   const [sortOrder, setSortOrder] = useState('newest'); // Default: newest to oldest
-  // Add last fetch time state
-  const [lastFetchTime, setLastFetchTime] = useState(null);
-
-  // Get auto-fetch settings
-  const { interval, globalEnabled } = useAutoFetchSettings();
 
   // Log API URL for debugging
   useEffect(() => {
@@ -44,6 +37,7 @@ function UserManagement() {
   // Fetch users function
   const fetchUsers = async () => {
     setError(null);
+    setLoading(true);
     
     try {
       console.log('Fetching users from:', `${API_URL}api_users/sinhvien/`);
@@ -52,35 +46,19 @@ function UserManagement() {
       
       // Store all users for filtering
       setUsers(response.data);
-      setLastFetchTime(new Date());
-      
-      // The filteredUsers useMemo will handle pagination
-      return response.data;
+      setLoading(false);
     } catch (err) {
       console.error('Error fetching users:', err);
       setError('Failed to fetch users data. Please try again later.');
-      throw err;
+      setLoading(false);
     }
   };
 
-  // Use auto-fetch hook for users
-  const {
-    data: autoFetchedUsers,
-    isLoading: isLoadingUsers,
-    error: autoFetchError,
-    manualFetch
-  } = useAutoFetch(fetchUsers, interval, globalEnabled);
-  
-  // Update users state when auto-fetched data changes
+  // Initial fetch and fetch when pagination changes
   useEffect(() => {
-    if (autoFetchedUsers && !isLoadingUsers) {
-      setUsers(autoFetchedUsers);
-    }
-    if (autoFetchError) {
-      setError(autoFetchError.message || 'Failed to fetch users data');
-    }
-  }, [autoFetchedUsers, isLoadingUsers, autoFetchError]);
-    
+    fetchUsers();
+  }, [pagination.currentPage, pagination.recordsPerPage]);
+
   // Calculate filtered users with pagination
   const filteredUsers = useMemo(() => {
     let filtered = users.filter(user => {
@@ -171,7 +149,6 @@ function UserManagement() {
       
       try {
         await apiService.delete(`api_users/sinhvien/${userId}/`);
-        manualFetch(); // Use manual fetch from useAutoFetch hook
       } catch (err) {
         console.error('Error deleting user:', err);
         setError('Failed to delete user. Please try again.');
@@ -231,8 +208,6 @@ function UserManagement() {
       const response = await apiService.post('api_users/sinhvien/', apiData);
       
       console.log('User created successfully:', response.data);
-      manualFetch();
-      setIsModalOpen(false);
       return true;
     } catch (err) {
       console.error('Direct API call error:', err);
@@ -291,7 +266,7 @@ function UserManagement() {
       }
       
       // Refresh user list and close modal
-      manualFetch();
+      fetchUsers();
       setIsModalOpen(false);
       return true;
     } catch (err) {
@@ -345,17 +320,6 @@ function UserManagement() {
       </div>
 
       <p>Quản lý người dùng và phân quyền trong hệ thống</p>
-      
-      {/* Auto-fetch control */}
-      {/* <AutoFetchControl /> */}
-      
-      {/* Last updated indicator */}
-      {lastFetchTime && (
-        <div className="last-updated">
-          <small>Cập nhật lần cuối: {lastFetchTime.toLocaleTimeString('vi-VN')}</small>
-          {globalEnabled && <span className="fetch-indicator"></span>}
-        </div>
-      )}
       
       {/* User Statistics */}
       <div className="dashboard-overview">
@@ -433,7 +397,7 @@ function UserManagement() {
               </tr>
             </thead>
             <tbody>
-              {isLoadingUsers ? (
+              {loading ? (
                 <tr>
                   <td colSpan="6" className="loading">Đang tải dữ liệu...</td>
                 </tr>

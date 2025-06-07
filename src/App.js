@@ -11,7 +11,6 @@ import Payment from './pages/Payment';
 import Reports from './pages/Reports';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
-import { AutoFetchProvider } from './context/AutoFetchContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Create a separate component for the layout with authenticated user
@@ -50,24 +49,22 @@ const AuthenticatedLayout = () => {
 function App() {
   return (
     <AuthProvider>
-      <AutoFetchProvider>
-        <Router>
-          <Routes>
-            {/* Public route */}
-            <Route path="/login" element={<Login />} />
-            
-            {/* Protected routes with navbar */}
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <AuthenticatedLayout />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </Router>
-      </AutoFetchProvider>
+      <Router>
+        <Routes>
+          {/* Public route */}
+          <Route path="/login" element={<Login />} />
+          
+          {/* Protected routes with navbar */}
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <AuthenticatedLayout />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Router>
     </AuthProvider>
   );
 }

@@ -3,19 +3,12 @@ import './styles/style-history.css';
 import Footer from '../components/Footer';
 import { API_URL, apiService } from '../services/api';
 import TablePagination from '../components/TablePagination';
-import useAutoFetch from '../hooks/useAutoFetch';
-import { useAutoFetchSettings } from '../context/AutoFetchContext';
-import AutoFetchControl from '../components/AutoFetchControl';
 
 function HistoryPage() {
   // State for history records
   const [historyRecords, setHistoryRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [lastFetchTime, setLastFetchTime] = useState(null);
-
-  // Get auto-fetch settings
-  const { interval, globalEnabled } = useAutoFetchSettings();
 
   // State for filters
   const [filters, setFilters] = useState({
@@ -111,40 +104,18 @@ function HistoryPage() {
         totalPages: Math.ceil(totalCount / pagination.recordsPerPage)
       });
       
-      setLastFetchTime(new Date());
       setLoading(false);
-      
-      return records;
     } catch (err) {
       console.error('Error fetching history records:', err);
       setError('Failed to load history records. Please try again later.');
       setLoading(false);
-      throw err;
     }
   };
 
-  // Use auto-fetch hook
-  const {
-    data: autoFetchedRecords,
-    isLoading: isLoadingRecords,
-    error: autoFetchError,
-    manualFetch
-  } = useAutoFetch(
-    fetchHistoryRecords,
-    interval,
-    globalEnabled,
-    [filters, pagination.currentPage, pagination.recordsPerPage]
-  );
-  
-  // Update state when auto-fetched data changes
+  // Initial fetch and fetch when filters or pagination change
   useEffect(() => {
-    if (autoFetchedRecords && !isLoadingRecords) {
-      setHistoryRecords(autoFetchedRecords);
-    }
-    if (autoFetchError) {
-      setError(autoFetchError.message || 'Failed to fetch history records');
-    }
-  }, [autoFetchedRecords, isLoadingRecords, autoFetchError]);
+    fetchHistoryRecords();
+  }, [filters, pagination.currentPage, pagination.recordsPerPage]);
 
   // Handle filter changes
   const handleFilterChange = (e) => {
@@ -202,19 +173,6 @@ function HistoryPage() {
       ...pagination,
       recordsPerPage: recordsPerPage,
       currentPage: 1 // Reset to first page when changing records per page
-    });
-  };
-
-  // Add a handler for sort order change
-  const handleSortOrderChange = (e) => {
-    setFilters({
-      ...filters,
-      sortOrder: e.target.value
-    });
-    // Reset to first page when sort order changes
-    setPagination({
-      ...pagination,
-      currentPage: 1
     });
   };
 
@@ -317,17 +275,6 @@ function HistoryPage() {
 
       <p className="section-description">Xem lịch sử các phương tiện ra vào bãi đỗ xe</p>
 
-      {/* Auto-fetch control */}
-      {/* <AutoFetchControl /> */}
-      
-      {/* Last updated indicator */}
-      {lastFetchTime && (
-        <div className="last-updated">
-          <small>Cập nhật lần cuối: {lastFetchTime.toLocaleTimeString('vi-VN')}</small>
-          {globalEnabled && <span className="fetch-indicator"></span>}
-        </div>
-      )}
-
       {/* Filters */}
       <div className="card">
         <h2 style={{ marginBottom: '15px' }}>Bộ lọc</h2>
@@ -370,7 +317,7 @@ function HistoryPage() {
           </div>
           <div className="filter-group">
             <label>Sắp xếp:</label>
-            <select value={filters.sortOrder} onChange={handleSortOrderChange}>
+            <select value={filters.sortOrder} onChange={handleFilterChange}>
               <option value="newest">Mới nhất đến cũ nhất</option>
               <option value="oldest">Cũ nhất đến mới nhất</option>
             </select>
