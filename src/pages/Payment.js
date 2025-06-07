@@ -8,10 +8,16 @@ import { useAutoFetchSettings } from '../context/AutoFetchContext';
 import AutoFetchControl from '../components/AutoFetchControl';
 
 function Payment() {
-  // State for payments
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // State for top-up history
+  const [topUpHistory, setTopUpHistory] = useState([]);
+  const [loadingTopUp, setLoadingTopUp] = useState(true);
+  const [errorTopUp, setErrorTopUp] = useState(null);
+
+  // State for recent transactions
+  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(true);
+  const [errorTransactions, setErrorTransactions] = useState(null);
+
   const [lastFetchTime, setLastFetchTime] = useState(null);
 
   // Get auto-fetch settings
@@ -60,46 +66,56 @@ function Payment() {
   });
 
   // Add sort order state
-  const [sortOrder, setSortOrder] = useState('newest'); // Default: newest to oldest
+  const [sortOrder, setSortOrder] = useState('newest');
 
-  // Fetch payment data from API
-  const fetchPayments = async () => {
-    setLoading(true);
-    setError(null);
+  // Function to fetch student information
+  const fetchStudentInfo = async (studentId) => {
+    try {
+      const response = await apiService.get(`api_users/sinhvien/${studentId}/`);
+      return response.data;
+    } catch (err) {
+      console.error(`Error fetching student info for ID ${studentId}:`, err);
+      return null;
+    }
+  };
+
+  // Fetch top-up history from API
+  const fetchTopUpHistory = async () => {
+    setLoadingTopUp(true);
+    setErrorTopUp(null);
     
     try {
-      // If the API supports pagination, use these params
       const params = {
         page: pagination.currentPage,
         limit: pagination.recordsPerPage
       };
       
-      // Make the API call
-      const response = await apiService.get('api_users/lichsuthanhtoan/', { params });
+      console.log('Fetching top-up history with params:', params);
+      const response = await apiService.get('api_users/lichsunaptien/', { params });
+      console.log('Raw API response:', response);
       
-      // Check if the response data is an array or has pagination info
       let records = [];
       let totalCount = 0;
       
       if (Array.isArray(response.data)) {
-        // API returns all records, store them all for filtering
+        console.log('Response is an array');
         const allRecords = response.data;
         totalCount = allRecords.length;
         records = allRecords;
       } else if (response.data.records) {
-        // API already returns paginated data
+        console.log('Response has records property');
         records = response.data.records;
         totalCount = response.data.totalRecords || response.data.records.length;
       } else {
-        // Fallback if the structure is unexpected
+        console.log('Using response data directly');
         records = response.data;
         totalCount = response.data.length;
       }
       
-      // Update state with the data
-      setPayments(records);
+      console.log('Processed records:', records);
+      console.log('Total count:', totalCount);
       
-      // Update pagination state
+      setTopUpHistory(records);
       setPagination(prev => ({
         ...prev,
         totalRecords: totalCount
@@ -108,44 +124,153 @@ function Payment() {
       setLastFetchTime(new Date());
       return records;
     } catch (err) {
-      console.error('Error fetching payments:', err);
-      setError(err.message || 'An error occurred while loading payment data');
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
+      setErrorTopUp(err.message || 'An error occurred while loading top-up history');
       throw err;
     } finally {
-      setLoading(false);
+      setLoadingTopUp(false);
     }
   };
 
-  // Use auto-fetch hook for payments
+  // Fetch recent transactions from API
+  const fetchRecentTransactions = async () => {
+    setLoadingTransactions(true);
+    setErrorTransactions(null);
+    
+    try {
+      const response = await apiService.get('api_users/lichsuthanhtoan/');
+      
+      let transactions = [];
+      
+      if (Array.isArray(response.data)) {
+        transactions = response.data;
+      } else if (response.data.records) {
+        transactions = response.data.records;
+      } else {
+        transactions = response.data;
+      }
+      
+      setRecentTransactions(transactions);
+      setLastFetchTime(new Date());
+      return transactions;
+    } catch (err) {
+      console.error('Error fetching recent transactions:', err);
+      setErrorTransactions(err.message || 'An error occurred while loading recent transactions');
+      throw err;
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
+  // Use auto-fetch hook for both APIs
   const {
-    data: autoFetchedPayments,
-    isLoading: isLoadingPayments,
-    error: autoFetchError,
-    manualFetch
+    data: autoFetchedTopUp,
+    isLoading: isLoadingTopUpAuto,
+    error: autoFetchErrorTopUp,
+    manualFetch: manualFetchTopUp
   } = useAutoFetch(
-    fetchPayments,
+    fetchTopUpHistory,
     interval,
     globalEnabled,
     [pagination.currentPage, pagination.recordsPerPage]
   );
+
+  const {
+    data: autoFetchedTransactions,
+    isLoading: isLoadingTransactionsAuto,
+    error: autoFetchErrorTransactions,
+    manualFetch: manualFetchTransactions
+  } = useAutoFetch(
+    fetchRecentTransactions,
+    interval,
+    globalEnabled,
+    []
+  );
   
-  // Update payments state when auto-fetched data changes
+  // Update states when auto-fetched data changes
   useEffect(() => {
-    if (autoFetchedPayments && !isLoadingPayments) {
-      setPayments(autoFetchedPayments);
+    if (autoFetchedTopUp && !isLoadingTopUpAuto) {
+      console.log('Received auto-fetched data:', autoFetchedTopUp);
+      setTopUpHistory(autoFetchedTopUp);
     }
-    if (autoFetchError) {
-      setError(autoFetchError.message || 'Failed to fetch payment data');
+    if (autoFetchErrorTopUp) {
+      console.error('Auto-fetch error:', autoFetchErrorTopUp);
+      setErrorTopUp(autoFetchErrorTopUp.message || 'Failed to fetch top-up history');
     }
-  }, [autoFetchedPayments, isLoadingPayments, autoFetchError]);
+  }, [autoFetchedTopUp, isLoadingTopUpAuto, autoFetchErrorTopUp]);
+
+  useEffect(() => {
+    if (autoFetchedTransactions && !isLoadingTransactionsAuto) {
+      setRecentTransactions(autoFetchedTransactions);
+    }
+    if (autoFetchErrorTransactions) {
+      setErrorTransactions(autoFetchErrorTransactions.message || 'Failed to fetch recent transactions');
+    }
+  }, [autoFetchedTransactions, isLoadingTransactionsAuto, autoFetchErrorTransactions]);
+
+  // Filter top-up history based on search and filters
+  const filteredTopUpHistory = useMemo(() => {
+    console.log('Filtering top-up history. Current data:', topUpHistory);
+    console.log('Current filters:', {
+      searchTerm,
+      dateFilter,
+      sortOrder,
+      pagination: {
+        currentPage: pagination.currentPage,
+        recordsPerPage: pagination.recordsPerPage
+      }
+    });
+
+    let result = [...topUpHistory];
+    
+    if (searchTerm) {
+      result = result.filter(payment => 
+        payment.ma_nap_tien?.toString().includes(searchTerm) ||
+        payment.sinh_vien?.ma_sv?.toString().includes(searchTerm) ||
+        payment.ma_giao_dich?.toString().includes(searchTerm) ||
+        payment.sinh_vien?.ho_ten?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      console.log('After search filter:', result);
+    }
+    
+    if (dateFilter !== 'all') {
+      result = result.filter(payment => {
+        const paymentDate = new Date(payment.thoi_gian_nap).toISOString().split('T')[0];
+        return paymentDate === dateFilter;
+      });
+      console.log('After date filter:', result);
+    }
+    
+    if (sortOrder === 'newest') {
+      result.sort((a, b) => new Date(b.thoi_gian_nap) - new Date(a.thoi_gian_nap));
+    } else if (sortOrder === 'oldest') {
+      result.sort((a, b) => new Date(a.thoi_gian_nap) - new Date(b.thoi_gian_nap));
+    }
+    console.log('After sorting:', result);
+    
+    setPagination(prev => ({
+      ...prev,
+      totalRecords: result.length
+    }));
+    
+    const startIndex = (pagination.currentPage - 1) * pagination.recordsPerPage;
+    const paginatedResult = result.slice(startIndex, startIndex + pagination.recordsPerPage);
+    console.log('Final paginated result:', paginatedResult);
+    
+    return paginatedResult;
+  }, [topUpHistory, searchTerm, dateFilter, pagination.currentPage, pagination.recordsPerPage, sortOrder]);
 
   // Process revenue data from API
   useEffect(() => {
-    if (payments.length > 0) {
+    if (topUpHistory.length > 0) {
       // Group payments by date and calculate total revenue for each date
-      const paymentsByDate = payments.reduce((acc, payment) => {
+      const paymentsByDate = topUpHistory.reduce((acc, payment) => {
         // Format date (without time)
-        const date = new Date(payment.thoi_gian).toLocaleDateString('vi-VN');
+        const date = new Date(payment.thoi_gian_nap).toLocaleDateString('vi-VN');
         
         if (!acc[date]) {
           acc[date] = 0;
@@ -161,13 +286,12 @@ function Payment() {
       
       setRevenueData({ dates, revenues });
     }
-  }, [payments]);
+  }, [topUpHistory]);
 
-  // Filter payments based on search and filters
-  const filteredPayments = useMemo(() => {
-    let result = [...payments];
+  // Filter recent transactions based on search and filters
+  const filteredRecentTransactions = useMemo(() => {
+    let result = [...recentTransactions];
     
-    // Apply filters
     if (searchTerm) {
       result = result.filter(payment => 
         payment.ma_thanh_toan?.toString().includes(searchTerm) ||
@@ -176,39 +300,35 @@ function Payment() {
       );
     }
     
-    // Apply date filter
-    if (dateFilter) {
+    if (dateFilter !== 'all') {
       result = result.filter(payment => {
         const paymentDate = new Date(payment.thoi_gian).toISOString().split('T')[0];
         return paymentDate === dateFilter;
       });
     }
     
-    // Apply sorting
     if (sortOrder === 'newest') {
       result.sort((a, b) => new Date(b.thoi_gian) - new Date(a.thoi_gian));
     } else if (sortOrder === 'oldest') {
       result.sort((a, b) => new Date(a.thoi_gian) - new Date(b.thoi_gian));
     }
     
-    // Update total records count for pagination
     setPagination(prev => ({
       ...prev,
       totalRecords: result.length
     }));
     
-    // Apply pagination
     const startIndex = (pagination.currentPage - 1) * pagination.recordsPerPage;
     return result.slice(startIndex, startIndex + pagination.recordsPerPage);
-  }, [payments, searchTerm, dateFilter, pagination.currentPage, pagination.recordsPerPage, sortOrder]);
+  }, [recentTransactions, searchTerm, dateFilter, pagination.currentPage, pagination.recordsPerPage, sortOrder]);
 
   // Calculate statistics
-  const totalRevenue = filteredPayments.reduce((sum, payment) => sum + payment.so_tien, 0);
+  const totalRevenue = filteredTopUpHistory.reduce((sum, payment) => sum + payment.so_tien, 0);
   
-  const averageAmount = filteredPayments.length > 0 ? totalRevenue / filteredPayments.length : 0;
+  const averageAmount = filteredTopUpHistory.length > 0 ? totalRevenue / filteredTopUpHistory.length : 0;
   
   // These might need to be adjusted if status is added later
-  const completedPayments = filteredPayments.length;
+  const completedPayments = filteredTopUpHistory.length;
   const refundedPayments = 0;
   const pendingPayments = 0;
 
@@ -254,7 +374,7 @@ function Payment() {
       const response = await apiService.post('api/payments', invoiceDetails);
       
       // Add new payment to the list
-      setPayments([response.data, ...payments]);
+      setTopUpHistory([response.data, ...topUpHistory]);
       
       // Close modal and reset form
       setIsInvoiceModalOpen(false);
@@ -308,7 +428,7 @@ function Payment() {
     };
 
     const initCharts = async () => {
-      if (!payments.length) return;
+      if (!topUpHistory.length) return;
       
       const Chart = await loadChartJs();
       
@@ -319,9 +439,9 @@ function Payment() {
       // we'll use dummy data for the payment method chart
       const methodLabels = ['Thẻ tín dụng', 'Thanh toán di động', 'Tiền mặt'];
       const methodCounts = [
-        Math.floor(payments.length * 0.5), // 50% credit card
-        Math.floor(payments.length * 0.3), // 30% mobile payment
-        payments.length - Math.floor(payments.length * 0.5) - Math.floor(payments.length * 0.3) // remainder for cash
+        Math.floor(topUpHistory.length * 0.5), // 50% credit card
+        Math.floor(topUpHistory.length * 0.3), // 30% mobile payment
+        topUpHistory.length - Math.floor(topUpHistory.length * 0.5) - Math.floor(topUpHistory.length * 0.3) // remainder for cash
       ];
       
       // Create the revenue chart
@@ -430,7 +550,7 @@ function Payment() {
         paymentMethodChartInstance.current.destroy();
       }
     };
-  }, [payments, revenueData]); // Re-run if payments or revenueData change
+  }, [topUpHistory, revenueData]); // Re-run if topUpHistory or revenueData change
 
   // Add handlers for pagination
   const handlePageChange = (page) => {
@@ -470,7 +590,7 @@ function Payment() {
         <p className="page-description">Quản lý giao dịch và thanh toán trong hệ thống</p>
         
         {/* Auto-fetch control */}
-        <AutoFetchControl />
+        {/* <AutoFetchControl /> */}
         
         {/* Last updated indicator */}
         {lastFetchTime && (
@@ -493,7 +613,7 @@ function Payment() {
           </div>
           <div className="card stat-card">
             <div className="stat-info">
-              <h3>{filteredPayments.length}</h3>
+              <h3>{filteredTopUpHistory.length}</h3>
               <p>Giao dịch</p>
             </div>
             <div className="icon success-bg">
@@ -545,12 +665,12 @@ function Payment() {
         <div className="card">
           <h2>Lịch sử nạp tiền</h2>
           <div className="payment-history">
-            {loading ? (
+            {loadingTopUp ? (
               <div className="loading">
                 <i className="fas fa-circle-notch fa-spin"></i>
                 <p>Đang tải dữ liệu thanh toán...</p>
               </div>
-            ) : filteredPayments.length === 0 ? (
+            ) : filteredTopUpHistory.length === 0 ? (
               <div className="no-data">
                 <i className="fas fa-search"></i>
                 <p>Không tìm thấy giao dịch nào phù hợp với bộ lọc</p>
@@ -560,35 +680,44 @@ function Payment() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Mã Nạp Tiền</th>
+                      <th>Mã nạp tiền</th>
                       <th>MSSV</th>
                       <th>Họ tên</th>
+                      <th>Phương thức</th>
                       <th>Thời gian</th>
                       <th>Số tiền</th>
+                      <th>Mã giao dịch</th>
+                      <th>Ghi chú</th>
                       <th>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPayments.map(payment => (
-                      <tr key={payment.ma_thanh_toan}>
-                        <td>{payment.ma_thanh_toan}</td>
-                        <td>{payment.sinh_vien?.ma_sv}</td>
-                        <td>{payment.sinh_vien?.ho_ten}</td>
-                        <td>{formatDate(payment.thoi_gian)}</td>
-                        <td>{payment.so_tien?.toLocaleString('vi-VN')} đ</td>
-                        <td>
-                          <div className="action-buttons">
-                            <button 
-                              onClick={() => handleViewReceipt(payment)}
-                              title="Xem hóa đơn"
-                              className="btn-primary action-btn"
-                            >
-                              <i className="fas fa-file-invoice"></i>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredTopUpHistory.map(payment => {
+                      console.log('Rendering payment row:', payment);
+                      return (
+                        <tr key={payment.ma_nap_tien}>
+                          <td>{payment.ma_nap_tien}</td>
+                          <td>{payment.sinh_vien?.ma_sv}</td>
+                          <td>{payment.sinh_vien?.ho_ten}</td>
+                          <td>{payment.phuong_thuc}</td>
+                          <td>{formatDate(payment.thoi_gian_nap)}</td>
+                          <td>{payment.so_tien?.toLocaleString('vi-VN')} đ</td>
+                          <td>{payment.ma_giao_dich || '-'}</td>
+                          <td>{payment.ghi_chu || '-'}</td>
+                          <td>
+                            <div className="action-buttons">
+                              <button 
+                                onClick={() => handleViewReceipt(payment)}
+                                title="Xem hóa đơn"
+                                className="btn-primary action-btn"
+                              >
+                                <i className="fas fa-file-invoice"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
                 
@@ -606,14 +735,59 @@ function Payment() {
           </div>
         </div>
 
+        {/* Recent Transactions */}
+        <div className="card recent-transactions-card">
+          <h2>Giao dịch gần đây nhất</h2>
+          <div className="recent-transactions">
+            {loadingTransactions ? (
+              <div className="loading">
+                <i className="fas fa-circle-notch fa-spin"></i>
+                <p>Đang tải dữ liệu giao dịch...</p>
+              </div>
+            ) : recentTransactions.length > 0 ? (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mã thanh toán</th>
+                    <th>MSSV</th>
+                    <th>Họ tên</th>
+                    <th>Thời gian</th>
+                    <th>Số tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentTransactions.slice(0, 5).map(transaction => (
+                    <tr key={`recent-${transaction.ma_thanh_toan}`}>
+                      <td>{transaction.ma_thanh_toan}</td>
+                      <td>{transaction.sinh_vien?.ma_sv}</td>
+                      <td>{transaction.sinh_vien?.ho_ten}</td>
+                      <td>{formatDate(transaction.thoi_gian)}</td>
+                      <td>{transaction.so_tien?.toLocaleString('vi-VN')} đ</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="no-data">
+                <p>Chưa có giao dịch nào</p>
+              </div>
+            )}
+            {errorTransactions && (
+              <div className="error-message">
+                <p>{errorTransactions}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Error Display - Only shown when there's an error */}
-        {error && (
+        {errorTopUp && (
           <div className="card error-card">
             <div className="error-icon">
               <i className="fas fa-exclamation-triangle"></i>
             </div>
             <h2>Lỗi khi tải dữ liệu</h2>
-            <p>{error}</p>
+            <p>{errorTopUp}</p>
             <button 
               className="btn-primary"
               onClick={() => window.location.reload()}
@@ -628,41 +802,6 @@ function Payment() {
           <div className="card chart">
             <h2 className="card-title">Doanh thu 7 ngày qua</h2>
             <canvas ref={revenueChartRef} width="350" height="250"></canvas>
-          </div>
-        </div>
-
-        {/* Payment Status Summary */}
-        <div className="tables-container">
-          <div className="card">
-            <h2 className="card-title">Giao dịch gần đây nhất</h2>
-            {payments.length > 0 ? (
-              <>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Mã thanh toán</th>
-                      <th>MSSV</th>
-                      <th>Thời gian</th>
-                      <th>Số tiền</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {payments.slice(0, 5).map(payment => (
-                      <tr key={`recent-${payment.ma_thanh_toan}`}>
-                        <td>{payment.ma_thanh_toan}</td>
-                        <td>{payment.sinh_vien?.ma_sv}</td>
-                        <td>{formatDate(payment.thoi_gian)}</td>
-                        <td>{payment.so_tien?.toLocaleString('vi-VN')} đ</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            ) : (
-              <div className="no-data">
-                <p>Chưa có giao dịch nào</p>
-              </div>
-            )}
           </div>
         </div>
 
@@ -688,31 +827,43 @@ function Payment() {
               <div className="receipt-details">
                 <div className="receipt-row">
                   <strong>Mã giao dịch:</strong>
-                  <span>{selectedPayment.ma_thanh_toan}</span>
+                  <span>{selectedPayment.ma_nap_tien}</span>
                 </div>
                 <div className="receipt-row">
                   <strong>Ngày giờ:</strong>
-                  <span>{formatDate(selectedPayment.thoi_gian)}</span>
+                  <span>{formatDate(selectedPayment.thoi_gian_nap)}</span>
                 </div>
               </div>
               
               <div className="receipt-customer-info">
                 <div className="receipt-row">
-                  <span>Khách hàng:</span>
-                  <span>{selectedPayment.sinh_vien?.ho_ten} (MSSV: {selectedPayment.sinh_vien?.ma_sv})</span>
+                  <span>MSSV:</span>
+                  <span>{selectedPayment.sinh_vien?.ma_sv}</span>
                 </div>
                 <div className="receipt-row">
-                  <span>RFID:</span>
-                  <span>{selectedPayment.sinh_vien?.id_rfid}</span>
+                  <span>Họ tên:</span>
+                  <span>{selectedPayment.sinh_vien?.ho_ten}</span>
+                </div>
+                <div className="receipt-row">
+                  <span>Phương thức:</span>
+                  <span>{selectedPayment.phuong_thuc}</span>
                 </div>
                 <div className="receipt-row">
                   <span>Số tiền:</span>
                   <span>{selectedPayment.so_tien?.toLocaleString('vi-VN')} đ</span>
                 </div>
-                <div className="receipt-row">
-                  <span>Số dư hiện tại:</span>
-                  <span>{selectedPayment.sinh_vien?.so_tien_hien_co?.toLocaleString('vi-VN')} đ</span>
-                </div>
+                {selectedPayment.ma_giao_dich && (
+                  <div className="receipt-row">
+                    <span>Mã giao dịch:</span>
+                    <span>{selectedPayment.ma_giao_dich}</span>
+                  </div>
+                )}
+                {selectedPayment.ghi_chu && (
+                  <div className="receipt-row">
+                    <span>Ghi chú:</span>
+                    <span>{selectedPayment.ghi_chu}</span>
+                  </div>
+                )}
               </div>
               
               <div className="receipt-total">
@@ -731,7 +882,6 @@ function Payment() {
                 </button>
                 <button 
                   onClick={() => {
-                    // Print receipt functionality
                     window.print();
                   }}
                   className="btn-secondary"

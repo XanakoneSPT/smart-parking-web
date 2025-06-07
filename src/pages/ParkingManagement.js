@@ -9,46 +9,16 @@ function ParkingManagement() {
   // -----------------
   
   // Parking spots state
-  const [parkingSpots, setParkingSpots] = useState([
-    { id: 'A1', status: 'available' },
-    { id: 'A2', status: 'occupied' },
-    { id: 'A3', status: 'occupied' },
-    { id: 'A4', status: 'available' },
-    { id: 'B1', status: 'occupied' },
-    { id: 'B2', status: 'available' },
-    { id: 'B3', status: 'occupied' },
-    { id: 'B4', status: 'available' },
-    { id: 'C1', status: 'available' },
-    { id: 'C2', status: 'available' },
-    { id: 'C3', status: 'occupied' },
-    { id: 'C4', status: 'available' }
-  ]);
+  const [parkingSpots, setParkingSpots] = useState([]);
   
   // License plate records state
-  const [plateRecords, setPlateRecords] = useState([
-    { id: 1, time: '14:35', plateNumber: '29A-12345', status: 'check-in', spot: 'A3' },
-    { id: 2, time: '14:22', plateNumber: '30B-67890', status: 'check-out', spot: 'B1' },
-    { id: 3, time: '13:57', plateNumber: '33C-45678', status: 'check-in', spot: 'C3' },
-    { id: 4, time: '13:30', plateNumber: '29B-98765', status: 'check-in', spot: 'B3' },
-    { id: 5, time: '13:15', plateNumber: '30A-56789', status: 'check-out', spot: 'A2' }
-  ]);
+  const [plateRecords, setPlateRecords] = useState([]);
   
-  // UI related states
-  const [activeCamera, setActiveCamera] = useState('occupancy');
-  
-  // Alerts state
-  const [alerts, setAlerts] = useState([
-    { id: 1, time: '14:30', message: 'Unauthorized vehicle detected at Zone B', type: 'warning' },
-    { id: 2, time: '13:22', message: 'Camera 2 connection lost', type: 'error' },
-    { id: 3, time: '12:45', message: 'Zone A approaching capacity (85%)', type: 'info' }
-  ]);
+    // Alerts state
+  const [alerts, setAlerts] = useState([]);
   
   // Parking rules state
-  const [parkingRules, setParkingRules] = useState([
-    { id: 1, zone: 'A', maximumHours: 3, hourlyRate: 5, status: 'active' },
-    { id: 2, zone: 'B', maximumHours: 8, hourlyRate: 3, status: 'active' },
-    { id: 3, zone: 'C', maximumHours: 24, hourlyRate: 2, status: 'active' }
-  ]);
+  const [parkingRules, setParkingRules] = useState([]);
   
   // Form states
   const [manualEntry, setManualEntry] = useState({
@@ -56,23 +26,7 @@ function ParkingManagement() {
     vehicleType: 'car',
     spotId: ''
   });
-  
-  // DATA FETCHING
-  // ---------------
-  
-  // Fetch plate records
-  // useEffect(() => {
-  //   const fetchPlateRecords = async () => {
-  //     try {
-  //       const response = await apiService.get('plate-records/');
-  //       setPlateRecords(response.data);
-  //     } catch (error) {
-  //       console.error('Error fetching plate records:', error);
-  //     }
-  //   };
-    
-  //   fetchPlateRecords();
-  // }, []);
+
   
   // Simulate camera feed refresh
   useEffect(() => {
@@ -140,12 +94,7 @@ function ParkingManagement() {
     }
   };
   
-  // Handle camera view change
-  const handleCameraChange = (camera) => {
-    setActiveCamera(camera);
-  };
-  
-  // Handle adding a new parking rule
+    // Handle adding a new parking rule
   const handleAddRule = () => {
     const newRule = {
       id: parkingRules.length + 1,
@@ -188,61 +137,44 @@ function ParkingManagement() {
         <div className="card camera-section">
           <div className="camera-controls">
             <h2>Camera trực tiếp</h2>
-            <div className="camera-selector">
-              <button 
-                className={activeCamera === 'occupancy' ? 'active' : ''} 
-                onClick={() => handleCameraChange('occupancy')}
-              >
-                Camera phát hiện chỗ trống
-              </button>
-              <button 
-                className={activeCamera === 'plate' ? 'active' : ''} 
-                onClick={() => handleCameraChange('plate')}
-              >
-                Camera nhận diện biển số
-              </button>
-            </div>
           </div>
           
           <div id="camera-feed" className="camera-feed">
-            {activeCamera === 'occupancy' ? (
-              <div className="camera-feed-content occupancy-camera">
+            {/* Occupancy Camera */}
+            <div className="camera-feed-content occupancy-camera">
+              <div className="occupancy-detection-container">
                 <div className="camera-overlay">
-                  {/* {parkingSpots.map(spot => (
-                    <div 
-                      key={spot.id}
-                      className={`overlay-spot ${spot.status}`}
-                      style={{
-                        left: `${(parseInt(spot.id.charAt(1)) - 1) * 25 + 5}%`,
-                        top: spot.id.charAt(0) === 'A' ? '20%' : 
-                              spot.id.charAt(0) === 'B' ? '50%' : '80%'
-                      }}
-                      onClick={() => handleSpotClick(spot.id)}
-                    >
-                      {spot.id}
-                    </div>
-                  ))} */}
+                  {/* Overlay spots code */}
                 </div>
                 <img src={`${API_URL}video_feed`} alt="Occupancy Camera Feed" />
-                <div className="camera-info">
-                  <span className="camera-label">Camera phát hiện chỗ trống</span>
-                  <span className="camera-status">Trực tiếp</span>
-                </div>
+                {/* <div className="occupancy-detection-status">
+                  <span className="detection-indicator">Theo dõi bãi đỗ...</span>
+                </div> */}
               </div>
-            ) : (
-              <div className="camera-feed-content plate-camera">
-                <div className="plate-recognition-box">
-                  <div className="plate-overlay">
-                    <div className="detected-plate">29A-12345</div>
-                  </div>
-                </div>
-                <img src={`${API_URL}lp_detection_feed`} alt="License Plate Camera Feed" />
-                <div className="camera-info">
-                  <span className="camera-label">Camera nhận diện biển số</span>
-                  <span className="camera-status">Trực tiếp</span>
-                </div>
+              <div className="camera-info">
+                <span className="camera-label">Camera phát hiện chỗ trống</span>
+                <span className="camera-status">Trực tiếp</span>
               </div>
-            )}
+            </div>
+            
+            {/* Only show separator in mobile view (CSS handles this) */}
+            <div className="camera-separator">
+              <span>Camera Streams</span>
+            </div>
+            
+            {/* License Plate Camera */}
+            <div className="camera-feed-content plate-camera">
+              <div className="plate-detection-container">
+                <img src={`${API_URL}video_feed_2`} alt="License Plate Camera Feed" />
+                {/* <div className="plate-detection-status">
+                  <span className="detection-indicator">Đang nhận diện...</span>
+                </div> */}
+              </div>
+              <div className="camera-info">
+                <span className="camera-label">Camera nhận diện biển số</span>
+                <span className="camera-status">Trực tiếp</span>
+              </div>
+            </div>
           </div> 
         </div>
       </div>
@@ -251,7 +183,7 @@ function ParkingManagement() {
       <div className="tables-container">
 
         {/* Manual Entry Form */}
-        <div className="card">
+        {/* <div className="card">
           <h2>Nhập thủ công</h2>
           <form className="manual-entry-form" onSubmit={handleEntrySubmit}>
             <div className="form-row">
@@ -306,7 +238,7 @@ function ParkingManagement() {
               </div>
             </div>
           </form>
-        </div>
+        </div> */}
       </div>
       <Footer />
     </div>

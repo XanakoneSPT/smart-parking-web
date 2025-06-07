@@ -318,7 +318,7 @@ function HistoryPage() {
       <p className="section-description">Xem lịch sử các phương tiện ra vào bãi đỗ xe</p>
 
       {/* Auto-fetch control */}
-      <AutoFetchControl />
+      {/* <AutoFetchControl /> */}
       
       {/* Last updated indicator */}
       {lastFetchTime && (

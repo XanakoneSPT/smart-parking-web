@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../context/AuthContext';
 
 function Navbar() {
   const [activeItem, setActiveItem] = useState('Trang chủ');
-  const { logout, currentUser } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
 
   // Function to set active menu item

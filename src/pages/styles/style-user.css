@@ -61,6 +61,16 @@ thead th {
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 20px;
+  font-size: 18px;
+  color: var(--gray);
+}
+
+/* Full-page loading indicator */
+.loading-fullpage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   height: 100vh;
   font-size: 18px;
   color: var(--gray);

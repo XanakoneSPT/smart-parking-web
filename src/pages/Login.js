@@ -1,147 +1,118 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import './styles/style-login.css';
+import React, { useState } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { apiService } from '../services/api';
+import './styles/Login.css';
 
-function Login() {
-  // State
-  const [credentials, setCredentials] = useState({
-    username: '',
-    password: ''
-  });
-  const [rememberMe, setRememberMe] = useState(false);
+const Login = () => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   
-  // Auth context
-  const { login, loading, error, isAuthenticated, currentUser } = useAuth();
+  const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  // Get the page user was trying to access before being redirected to login
-  const from = location.state?.from?.pathname || 
-    (currentUser?.role === 'Admin' ? '/admin' : '/parking-management');
-
-  // Redirect if already logged in
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate(from, { replace: true });
-    }
-  }, [isAuthenticated, navigate, from]);
-
-  // Event Handlers
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setCredentials({
-      ...credentials,
-      [name]: value
-    });
-  };
-
-  const handleRememberMeChange = () => {
-    setRememberMe(!rememberMe);
-  };
+  // If already authenticated, redirect to main page
+  if (isAuthenticated) {
+    return <Navigate to="/parking-management" />;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate form
-    if (!credentials.username.trim() || !credentials.password.trim()) {
-      return;
-    }
-    
+    setError('');
+    setLoading(true);
+
     try {
-      // Use login function from auth context
-      await login(credentials.username, credentials.password, rememberMe);
-      // Navigation is handled by the useEffect hook
-    } catch (err) {
-      // Error handling is done in the auth context
-      console.error('Login submission error:', err);
+      // Validate it's an admin account (starting with 'qtv')
+      if (!username.toLowerCase().startsWith('qtv')) {
+        setError('Truy cập bị từ chối. Chỉ tài khoản quản trị viên được phép đăng nhập.');
+        setLoading(false);
+        return;
+      }
+      
+      const response = await apiService.login(username, password);
+      const { data } = response;
+      
+      // Call login function from context with rememberMe always false (using sessionStorage)
+      login(data.user, data.token, false);
+      navigate('/parking-management');
+    } catch (error) {
+      let errorMessage = 'Đăng nhập thất bại. Vui lòng kiểm tra thông tin đăng nhập.';
+      
+      if (error.response) {
+        if (error.response.status === 403) {
+          errorMessage = 'Truy cập bị từ chối. Chỉ tài khoản quản trị viên được phép đăng nhập.';
+        } else if (error.response.data && error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      setError(errorMessage);
+      console.error('Lỗi đăng nhập:', error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const toggleShowPassword = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <div className="logo">
-            {/* <img src="/api/placeholder/80/80" alt="Logo" /> */}
-            <h1>Logo</h1>
-          </div>
-          <h1>Smart Parking System</h1>
-          <p>Sign in to continue</p>
+          <h2>Đăng Nhập Quản Trị Viên</h2>
+          <p>Truy cập vào hệ thống quản trị</p>
         </div>
         
-        {error && (
-          <div className="error-message">
-            <i className="fas fa-exclamation-circle"></i>
-            {error}
-          </div>
-        )}
+        {error && <div className="error-message">{error}</div>}
         
-        <form onSubmit={handleSubmit}>
-        <div className="form-group">
-            <label htmlFor="username">Admin ID</label>
-            <div className="input-with-icon">
-              <i className="fas fa-user"></i>
-              <input
-                type="text"
-                id="username"
-                name="username"
-                placeholder="Enter your admin ID"
-                value={credentials.username}
-                onChange={handleInputChange}
-                disabled={loading}
-                required
-              />
-            </div>
+        <form className="login-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="username">Tên đăng nhập</label>
+            <input
+              type="text"
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Nhập mã quản trị viên (QTVxxx)"
+              required
+            />
           </div>
           
           <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <div className="input-with-icon">
-              <i className="fas fa-lock"></i>
+            <label htmlFor="password">Mật khẩu</label>
+            <div className="password-input-container">
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 id="password"
-                name="password"
-                placeholder="Enter your password"
-                value={credentials.password}
-                onChange={handleInputChange}
-                disabled={loading}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Nhập mật khẩu"
                 required
               />
+              <button 
+                type="button" 
+                className="show-password-btn" 
+                onClick={toggleShowPassword}
+              >
+                <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
+              </button>
             </div>
           </div>
           
-          <div className="form-options">
-            <div className="remember-me">
-              <input
-                type="checkbox"
-                id="remember-me"
-                checked={rememberMe}
-                onChange={handleRememberMeChange}
-                disabled={loading}
-              />
-              <label htmlFor="remember-me">Remember me</label>
-            </div>
-            <a href="/forgot-password" className="forgot-password">Forgot password?</a>
-          </div>
-          
-          <button
-            type="submit"
-            className="btn-login"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <i className="fas fa-spinner fa-spin"></i>
-                Signing in...
-              </>
-            ) : 'Sign in'}
+          <button type="submit" className="login-button" disabled={loading}>
+            {loading ? 'Đang đăng nhập...' : 'Đăng Nhập'}
           </button>
         </form>
       </div>
     </div>
   );
-}
+};
 
-export default Login;
+export default Login; 

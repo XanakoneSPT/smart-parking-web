@@ -18,7 +18,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
+}
+
+.camera-controls h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #fff;
 }
 
 .camera-selector {
@@ -45,11 +51,15 @@
   position: relative;
   margin: auto;
   border-radius: 8px;
-  overflow: hidden;
-  height: 80%;
-  width: 90%;
-  background-color: #000;
+  overflow: visible;
+  height: auto;
+  width: 100%;
+  background-color: #151515;
   transition: opacity 0.3s;
+  display: flex;
+  flex-direction: row;
+  gap: 30px;
+  padding: 25px;
 }
 
 .camera-feed.refreshing {
@@ -58,13 +68,49 @@
 
 .camera-feed-content {
   position: relative;
-  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  border: 2px solid #333;
+  flex: 1;
+  min-height: 400px;
 }
 
-.camera-feed img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+.camera-feed-content.occupancy-camera {
+  background-color: #0f1e2d;
+}
+
+.camera-feed-content.plate-camera {
+  background-color: #2d1a1a;
+}
+
+.camera-feed-content::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.camera-feed-content.occupancy-camera::after {
+  background: linear-gradient(to right, #4CAF50, #2196F3);
+}
+
+.camera-feed-content.plate-camera::after {
+  background: linear-gradient(to right, #F44336, #FF9800);
+}
+
+.camera-feed-content .camera-overlay,
+.camera-feed-content .plate-recognition-box {
+  position: absolute;
+  z-index: 3;
+}
+
+.camera-feed-content + .camera-feed-content {
+  margin-top: 30px;
 }
 
 .camera-info {
@@ -143,6 +189,51 @@
   border-color: #FFC107;
 }
 
+/* License plate detection */
+.plate-detection-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.plate-detection-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.plate-detection-status {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 8px 12px;
+  border-radius: 20px;
+  z-index: 4;
+}
+
+.detection-indicator {
+  color: #4CAF50;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+
+.detection-indicator::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #4CAF50;
+  margin-right: 8px;
+  animation: blink 1.5s infinite;
+}
+
 /* License plate recognition */
 .plate-recognition-box {
   position: absolute;
@@ -152,7 +243,7 @@
   width: 200px;
   height: 70px;
   border: 2px solid rgba(33, 150, 243, 0.8);
-  z-index: 2;
+  z-index: 3;
   animation: pulse 2s infinite;
 }
 
@@ -164,6 +255,7 @@
   background: rgba(33, 150, 243, 0.8);
   padding: 5px;
   text-align: center;
+  z-index: 4;
 }
 
 .detected-plate {
@@ -399,9 +491,47 @@
 }
 
 /* Responsive adjustments */
+@media screen and (max-width: 1100px) {
+  .camera-feed {
+    flex-direction: column;
+    gap: 30px;
+  }
+  
+  .camera-feed-content {
+    min-height: 300px;
+  }
+  
+  .camera-separator {
+    display: block;
+  }
+}
+
 @media screen and (max-width: 768px) {
   .camera-feed {
-    height: 240px;
+    padding: 20px;
+    gap: 30px;
+  }
+
+  .occupancy-detection-container img,
+  .plate-detection-container img {
+    min-height: 200px;
+  }
+  
+  .camera-title {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  .camera-feed-content {
+    min-height: auto;
+  }
+
+  .camera-feed-content + .camera-feed-content {
+    margin-top: 20px;
+  }
+
+  .camera-separator {
+    margin: 0;
   }
 
   .form-row {
@@ -423,7 +553,14 @@
 
 @media screen and (max-width: 480px) {
   .camera-feed {
-    height: 200px;
+    padding: 15px;
+    gap: 25px;
+    width: 95%;
+  }
+
+  .occupancy-detection-container img,
+  .plate-detection-container img {
+    min-height: 180px;
   }
 
   .camera-selector button {
@@ -439,4 +576,81 @@
   .detected-plate {
     font-size: 14px;
   }
+}
+
+.camera-title {
+  color: white;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 12px 15px;
+  margin: 0;
+  font-size: 16px;
+  text-align: left;
+  position: relative;
+  z-index: 5;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.occupancy-camera .camera-title {
+  border-left: 4px solid #4CAF50;
+}
+
+.plate-camera .camera-title {
+  border-left: 4px solid #F44336;
+}
+
+/* Occupancy detection */
+.occupancy-detection-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.occupancy-detection-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-separator {
+  display: none;
+  position: relative;
+  text-align: center;
+  margin: 10px 0;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.camera-separator span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #151515;
+  padding: 0 15px;
+  font-size: 14px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.occupancy-detection-status {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 8px 12px;
+  border-radius: 20px;
+  z-index: 4;
+}
+
+.card {
+  background-color: transparent;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
 }

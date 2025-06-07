@@ -15,12 +15,12 @@ function UserManagement() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUser, setNewUser] = useState({
-    id: '', // Student ID (ma_sv)
-    name: '',
-    id_rfid: '',
-    role: 'Student',
-    total_money: 100000,
-    permissions: ['dashboard', 'reports']
+    id: '', // ma_sv
+    password: 'cntt123', // mat_khau default
+    name: '', // ho_ten
+    id_rfid: '', // id_rfid
+    total_money: 100000, // so_tien_hien_co
+    status: 'active' // trang_thai
   });
   // Add pagination state
   const [pagination, setPagination] = useState({
@@ -142,26 +142,25 @@ function UserManagement() {
   const handleAddUserClick = () => {
     setSelectedUser(null);
     setNewUser({
-      id: '', 
+      id: '',
+      password: 'cntt123',
       name: '',
       id_rfid: '',
-      role: 'Student',
       total_money: 100000,
-      permissions: ['dashboard', 'reports']
+      status: 'active'
     });
     setIsModalOpen(true);
   };
 
   const handleEditClick = (user) => {
     setSelectedUser(user);
-    // Map API data structure to form structure
     setNewUser({
       id: user.ma_sv,
+      password: 'cntt123',
       name: user.ho_ten,
       id_rfid: user.id_rfid,
-      role: 'Student', // Default since API doesn't seem to handle roles
       total_money: user.so_tien_hien_co,
-      permissions: ['dashboard', 'reports'] // Default permissions
+      status: user.trang_thai || 'active'
     });
     setIsModalOpen(true);
   };
@@ -218,13 +217,13 @@ function UserManagement() {
   // Direct API call function - bypass complex logic
   const addUserDirectly = async () => {
     try {
-      // Simple request with minimal data for testing
       const apiData = {
         ma_sv: newUser.id,
+        mat_khau: newUser.password,
         ho_ten: newUser.name,
         id_rfid: newUser.id_rfid,
         so_tien_hien_co: newUser.total_money,
-        mat_khau: 'cntt123'
+        trang_thai: newUser.status
       };
       
       console.log('Sending direct API request to create user:', apiData);
@@ -335,8 +334,6 @@ function UserManagement() {
     }));
   };
 
-  if (isLoadingUsers) return <div className="loading">Đang tải dữ liệu...</div>;
-
   return (
     <div className="content">
       {/* Error message */}
@@ -350,7 +347,7 @@ function UserManagement() {
       <p>Quản lý người dùng và phân quyền trong hệ thống</p>
       
       {/* Auto-fetch control */}
-      <AutoFetchControl />
+      {/* <AutoFetchControl /> */}
       
       {/* Last updated indicator */}
       {lastFetchTime && (
@@ -436,7 +433,11 @@ function UserManagement() {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.length > 0 ? (
+              {isLoadingUsers ? (
+                <tr>
+                  <td colSpan="6" className="loading">Đang tải dữ liệu...</td>
+                </tr>
+              ) : filteredUsers.length > 0 ? (
                 filteredUsers.map(user => (
                   <tr key={user.ma_sv}>
                     <td>{user.ma_sv}</td>
@@ -527,50 +528,27 @@ function UserManagement() {
               </div>
               
               <div className="form-group">
-                <label>Vai trò</label>
+                <label>Trạng thái</label>
                 <select 
-                  name="role" 
-                  value={newUser.role} 
+                  name="status" 
+                  value={newUser.status} 
                   onChange={handleInputChange}
                 >
-                  <option value="Admin">Admin</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Student">Student</option>
+                  <option value="active">Hoạt động</option>
+                  <option value="inactive">Không hoạt động</option>
                 </select>
               </div>
               
               <div className="form-group">
-                <label>Số tiền hiện có</label>
+                <label htmlFor="amount">Số tiền hiện có</label>
                 <input 
                   type="number" 
                   name="total_money"
-                  value={newUser.total_money === 'inactive' ? 0 : newUser.total_money}
+                  value={newUser.total_money}
                   onChange={handleInputChange}
                   min="0"
                   step="1000"
                 />
-              </div>
-              
-              <div className="form-group">
-                <label>Quyền hạn</label>
-                <div className="checkbox-group">
-                  {['dashboard', 'users', 'reports', 'settings'].map(perm => (
-                    <div className="checkbox-item" key={perm}>
-                      <input 
-                        type="checkbox" 
-                        id={`perm-${perm}`}
-                        checked={newUser.permissions.includes(perm)}
-                        onChange={() => handlePermissionChange(perm)}
-                      />
-                      <label htmlFor={`perm-${perm}`}>
-                        {perm === 'dashboard' && 'Bảng điều khiển'}
-                        {perm === 'users' && 'Quản lý người dùng'}
-                        {perm === 'reports' && 'Báo cáo'}
-                        {perm === 'settings' && 'Cài đặt hệ thống'}
-                      </label>
-                    </div>
-                  ))}
-                </div>
               </div>
               
               <div className="form-actions">
